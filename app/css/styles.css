@@ -1,0 +1,95 @@
+/* Golf Course Screensaver Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
+    overflow: hidden;
+    height: 100vh;
+}
+
+.screensaver-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#golfCanvas {
+    border: 1px solid #c4b49a;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(to bottom, #f5f1e8, #e8dcc0);
+    cursor: crosshair;
+}
+
+.controls {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 10;
+}
+
+#regenerateBtn {
+    padding: 12px 24px;
+    background: linear-gradient(145deg, #8a9a7a, #7a8a6a);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: normal;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(138, 154, 122, 0.2);
+    transition: all 0.3s ease;
+}
+
+#regenerateBtn:hover {
+    background: linear-gradient(145deg, #7a8a6a, #6a7a5a);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(138, 154, 122, 0.25);
+}
+
+#regenerateBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 10px rgba(138, 154, 122, 0.2);
+}
+
+.info {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 16px;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+#holeInfo {
+    font-weight: normal;
+    color: #6a5a4a;
+    font-size: 14px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .controls {
+        top: 10px;
+        left: 10px;
+    }
+    
+    #regenerateBtn {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    #holeInfo {
+        font-size: 12px;
+    }
+}
