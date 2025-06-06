@@ -39,6 +39,21 @@ class GolfCourse {    constructor(renderer) {
         this._lastUpdateTime = null;
         this.generateNewHole();
     }    generateNewHole() {
+        // Clean up any existing balls from the previous course
+        // Unlike other elements, balls don't slide in so they need manual cleanup
+        if (this.golfBall) {
+            console.log('🧹 Cleaning up existing ball for fresh course generation');
+            this.golfBall = null;
+        }
+        
+        // Stop any active ball animation
+        if (this.ballAnimation && this.ballAnimation.active) {
+            console.log('🛑 Stopping active ball animation for fresh course generation');
+            this.ballAnimation.active = false;
+            this.ballAnimation.isDisappearing = false;
+            this.ballAnimation.restTime = null;
+        }
+        
         // Define the playable area - doubled in size for more expansive courses
         const width = 160;
         const height = 120;
@@ -476,10 +491,12 @@ class GolfCourse {    constructor(renderer) {
             spin: random(0, Math.PI * 2), // Initial random spin
             spinRate: 0, // Spin rate will be based on velocity            lastGroundTime: 0, // Track when the ball last hit the ground
             hitGreen: false, // Track if the ball has hit the green
-            outOfBounds: false, // Track if ball has left the terrain
-            restTime: null, // Track when ball comes to rest for disappearing
+            outOfBounds: false, // Track if ball has left the terrain            restTime: null, // Track when ball comes to rest for disappearing
             isRolling: false, // Track if ball is in rolling mode (no more bouncing)
-            isDisappearing: false // Track if ball is in disappearing mode (falling through ground)
+            isDisappearing: false, // Track if ball is in disappearing mode (falling through ground)
+            isTrapped: false, // Track if ball is trapped in bunker
+            holeInOne: false, // Track if ball made it into the hole
+            waterHazard: false // Track if ball landed in water
         };// Calculate initial velocity for realistic trajectory with randomness
         const flightTime = 2.0; // Time for initial flight
         const xDistance = finalX - startX;
@@ -644,8 +661,13 @@ class GolfCourse {    constructor(renderer) {
         if (x < 0 || x > hole.width || y < 0 || y > hole.height) {
             return { type: 'off-course' };
         }
+          // Check hole first (highest priority - very small target)
+        const distanceToHole = Math.sqrt((x - hole.green.pin.x) ** 2 + (y - hole.green.pin.y) ** 2);
+        if (distanceToHole <= 0.5) { // Hole radius is very small (0.5 units)
+            return { type: 'hole', distance: distanceToHole };
+        }
         
-        // Check green (highest priority)
+        // Check green (second priority)
         const distanceToGreen = Math.sqrt((x - hole.green.x) ** 2 + (y - hole.green.y) ** 2);
         if (distanceToGreen <= hole.green.radius) {
             return { type: 'green' };
@@ -706,11 +728,35 @@ class GolfCourse {    constructor(renderer) {
         // Apply gravity to Z velocity ONLY if not in rolling mode
         if (!this.ballAnimation.isRolling) {
             this.ballAnimation.velocity.z -= this.ballAnimation.gravity * deltaTime;
-        }
-          // Update position based on velocity (maintaining momentum)
+        }        // Update position based on velocity (maintaining momentum)
         this.golfBall.x += this.ballAnimation.velocity.x * deltaTime;
         this.golfBall.y += this.ballAnimation.velocity.y * deltaTime;
-        this.golfBall.z += this.ballAnimation.velocity.z * deltaTime;        // Keep ball at ground level when rolling (but not when disappearing)
+        this.golfBall.z += this.ballAnimation.velocity.z * deltaTime;
+
+        // Check for special collision detection while ball is in flight (hole and water can be hit from above)
+        if (!this.ballAnimation.isDisappearing && !this.ballAnimation.isTrapped) {
+            const currentFeature = this.identifyHitFeature(this.golfBall.x, this.golfBall.y);
+            
+            // Check for hole collision (can happen at any height if ball passes through)
+            if (currentFeature.type === 'hole') {
+                console.log(`🕳️ INCREDIBLE! Ball flew into the hole at height ${this.golfBall.z.toFixed(1)}! Distance: ${currentFeature.distance.toFixed(2)} units`);
+                this.ballAnimation.active = false;
+                this.ballAnimation.isDisappearing = true;
+                this.ballAnimation.holeInOne = true;
+                console.log('⭐ HOLE IN ONE! Ball disappeared into the hole - animation complete!');
+                return;
+            }
+            
+            // Check for water collision (ball can land in water from above)
+            if (currentFeature.type === 'water' && this.golfBall.z <= 2) { // Only if close to water surface
+                console.log(`💧 SPLASH! Ball flew into WATER at height ${this.golfBall.z.toFixed(1)} at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                this.ballAnimation.active = false;
+                this.ballAnimation.isDisappearing = true;
+                this.ballAnimation.waterHazard = true;
+                console.log('🌊 Ball splashed into the water hazard - animation complete!');
+                return;
+            }
+        }// Keep ball at ground level when rolling (but not when disappearing)
         if (this.ballAnimation.isRolling && !this.ballAnimation.isDisappearing) {
             this.golfBall.z = 0;
             
@@ -736,28 +782,42 @@ class GolfCourse {    constructor(renderer) {
                 this.ballAnimation.velocity.x ** 2 + 
                 this.ballAnimation.velocity.y ** 2
             );
-            
-            if (horizontalSpeed < 1) { // Lower threshold for stopping
-                // Ball has come to rest - start disappearing countdown
+              if (horizontalSpeed < 1) { // Lower threshold for stopping
+                // Ball has come to rest - check if it's on qualified terrain
                 if (!this.ballAnimation.restTime) {
                     this.ballAnimation.restTime = now;
-                    console.log('🛑 Ball came to rest - starting disappear countdown at position:', {
+                    
+                    console.log('🛑 Ball came to rest at position:', {
                         x: this.golfBall.x.toFixed(2),
                         y: this.golfBall.y.toFixed(2),
                         z: this.golfBall.z.toFixed(2),
                         speed: horizontalSpeed.toFixed(3)
                     });
                 }
-                  // Check if ball has been at rest long enough to disappear
-                const restDuration = now - this.ballAnimation.restTime;
-                const disappearDelay = 2000; // Ball disappears after 2 seconds at rest
-                  if (restDuration >= disappearDelay) {
-                    // Start fade-out animation - ball just becomes invisible at rest position
-                    this.ballAnimation.isDisappearing = true; // Mark as disappearing
-                    this.ballAnimation.active = false; // Stop the animation immediately
-                    console.log('👻 Ball fading away - animation complete at rest position');
-                    console.log(`   Final ball position: (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)}, ${this.golfBall.z.toFixed(1)})`);
-                    return; // Exit update loop immediately
+
+                // Check what terrain the ball is resting on
+                const restingFeature = this.identifyHitFeature(this.golfBall.x, this.golfBall.y);
+                
+                // Define qualified terrain types where ball should NOT disappear
+                const qualifiedTerrain = ['green', 'fairway', 'tee', 'terrain-square'];
+                const isOnQualifiedTerrain = qualifiedTerrain.includes(restingFeature.type);
+                
+                if (isOnQualifiedTerrain) {
+                    // Ball is resting on qualified terrain - keep it visible
+                    console.log(`✅ Ball resting on ${restingFeature.type} - staying visible`);
+                    // Reset rest time to prevent disappearance
+                    this.ballAnimation.restTime = now;
+                } else {
+                    // Ball is on rough or off-course - allow disappearing after 3 seconds
+                    const restDuration = now - this.ballAnimation.restTime;
+                    const disappearDelay = 3000; // 3 seconds for non-qualified terrain
+                    
+                    if (restDuration >= disappearDelay) {
+                        this.ballAnimation.isDisappearing = true;
+                        this.ballAnimation.active = false;
+                        console.log(`👻 Ball disappeared from ${restingFeature.type} after ${restDuration}ms`);
+                        return;
+                    }
                 }
             } else {
                 // Ball is moving again, reset rest timer
@@ -784,33 +844,64 @@ class GolfCourse {    constructor(renderer) {
                 this.ballAnimation.lastGroundTime = now;
                 
                 this.golfBall.z = 0; // Ensure ball doesn't go below ground when on terrain
-                
-                // Check what specific course feature the ball hit
+                  // Check what specific course feature the ball hit
                 const hitFeature = this.identifyHitFeature(this.golfBall.x, this.golfBall.y);
                 
                 if (hitFeature.type !== 'off-course') {
-                    if (hitFeature.type === 'green') {
+                    // Handle special collision behaviors for different golf elements
+                    if (hitFeature.type === 'hole') {
+                        // HOLE IN ONE! Ball disappears immediately
+                        console.log(`🕳️ HOLE IN ONE! Ball sank into the hole! Distance: ${hitFeature.distance.toFixed(2)} units`);
+                        this.ballAnimation.active = false; // Stop animation immediately
+                        this.ballAnimation.isDisappearing = true;
+                        this.ballAnimation.holeInOne = true;
+                        console.log('⭐ AMAZING SHOT! Ball disappeared into the hole - animation complete!');
+                        return; // Exit immediately
+                        
+                    } else if (hitFeature.type === 'water') {
+                        // WATER HAZARD! Ball sinks and disappears
+                        console.log(`💧 SPLASH! Ball landed in WATER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.active = false; // Stop animation immediately
+                        this.ballAnimation.isDisappearing = true;
+                        this.ballAnimation.waterHazard = true;
+                        console.log('🌊 Ball sank into the water hazard - animation complete!');
+                        return; // Exit immediately
+                        
+                    } else if (hitFeature.type === 'bunker') {
+                        // SAND BUNKER! Ball stops immediately (sand trap effect)
+                        console.log(`🏖️ Ball landed in BUNKER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        console.log('🛑 Ball trapped in sand - all movement stopped!');
+                        
+                        // Completely stop all movement - ball is trapped
+                        this.ballAnimation.velocity.x = 0;
+                        this.ballAnimation.velocity.y = 0;
+                        this.ballAnimation.velocity.z = 0;
+                        this.ballAnimation.isRolling = true; // No more bouncing
+                        this.ballAnimation.isTrapped = true; // Mark as trapped in bunker
+                        this.ballAnimation.hitGreen = false;
+                        
+                        // Don't return here - let the ball settle in the bunker
+                        
+                    } else if (hitFeature.type === 'green') {
                         const distanceToPin = Math.sqrt(
                             (this.golfBall.x - this.currentHole.green.pin.x) ** 2 + 
                             (this.golfBall.y - this.currentHole.green.pin.y) ** 2
                         );
                         console.log(`🏌️ EXCELLENT! Ball landed on GREEN! Distance from pin: ${distanceToPin.toFixed(1)} units`);
                         this.ballAnimation.hitGreen = true; // Special green effect
+                        
                     } else if (hitFeature.type === 'fairway') {
                         console.log(`⛳ GOOD! Ball landed on FAIRWAY at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
                         this.ballAnimation.hitGreen = false;
+                        
                     } else if (hitFeature.type === 'tee') {
                         console.log(`🏌️ Ball landed on TEE area at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
                         this.ballAnimation.hitGreen = false;
-                    } else if (hitFeature.type === 'bunker') {
-                        console.log(`🏖️ Ball landed in BUNKER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                        this.ballAnimation.hitGreen = false;
-                    } else if (hitFeature.type === 'water') {
-                        console.log(`💧 SPLASH! Ball landed in WATER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                        this.ballAnimation.hitGreen = false;
+                        
                     } else if (hitFeature.type === 'terrain-square') {
                         console.log(`🌱 PERFECT! Ball landed on TERRAIN SQUARE [${hitFeature.gridX},${hitFeature.gridY}] at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
                         this.ballAnimation.hitGreen = false;
+                        
                     } else {
                         console.log(`🌿 Ball landed in ROUGH at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
                         this.ballAnimation.hitGreen = false;
@@ -818,8 +909,11 @@ class GolfCourse {    constructor(renderer) {
                 } else {
                     console.log(`💨 Ball landed OFF-COURSE at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
                     this.ballAnimation.hitGreen = false;
-                }                // Bouncing logic - only bounce when ball is on terrain
-                if (Math.abs(this.ballAnimation.velocity.z) > 2 && this.ballAnimation.bounces < this.ballAnimation.maxBounces) {
+                }                
+                // Bouncing logic - only bounce when ball is on terrain AND not trapped
+                if (Math.abs(this.ballAnimation.velocity.z) > 2 && 
+                    this.ballAnimation.bounces < this.ballAnimation.maxBounces && 
+                    !this.ballAnimation.isTrapped) {
                     // Realistic bounce with energy loss like a real golf ball
                     this.ballAnimation.velocity.z = -this.ballAnimation.velocity.z * this.ballAnimation.bounceDecay;
                     
@@ -1200,11 +1294,28 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.fill();
         
         this.renderer.ctx.restore();
-    }renderBall() {
+    }    renderBall() {
         if (!this.golfBall) return;
         
         const ball = this.golfBall;
         const hole = this.currentHole;
+        
+        // Don't render ball if it has disappeared due to special events
+        if (this.ballAnimation && this.ballAnimation.isDisappearing) {
+            // Handle special disappearing effects for hole-in-one and water hazard
+            if (this.ballAnimation.holeInOne) {
+                // Ball disappeared into the hole - show celebration effect
+                this.renderHoleInOneCelebration();
+                return; // Don't render the ball itself
+            } else if (this.ballAnimation.waterHazard) {
+                // Ball sank into water - show splash effect
+                this.renderWaterSplashEffect();
+                return; // Don't render the ball itself
+            } else {
+                // Regular disappearing (ball at rest)
+                return; // Ball faded away naturally
+            }
+        }
         
         // Don't render ball if it's out of bounds and has fallen below visible area
         const isOutOfBounds = (
@@ -1324,8 +1435,7 @@ class GolfCourse {    constructor(renderer) {
             this.renderer.ctx.arc(dimpleX, dimpleY, dimpleSize, 0, Math.PI * 2);
             this.renderer.ctx.fill();
         }
-        
-        // Add a highlight for more 3D effect
+          // Add a highlight for more 3D effect
         this.renderer.ctx.globalAlpha = 0.6;
         this.renderer.ctx.fillStyle = '#ffffff';
         const highlightX = ballScreen.x - 1;
@@ -1335,6 +1445,28 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.fill();
         
         this.renderer.ctx.restore();
+        
+        // Add special visual effect for trapped ball in bunker
+        if (this.ballAnimation && this.ballAnimation.isTrapped) {
+            this.renderer.ctx.save();
+              // Draw sand particles around the trapped ball
+            this.renderer.ctx.globalAlpha = 0.7;
+            this.renderer.ctx.fillStyle = '#D2B48C'; // Sand color
+            
+            const sandParticles = 12;
+            for (let i = 0; i < sandParticles; i++) {
+                const angle = (i / sandParticles) * Math.PI * 2;
+                const distance = (ball.radius + 2) * this.renderer.scale;
+                const particleX = ballScreen.x + Math.cos(angle) * distance;
+                const particleY = ballScreen.y + Math.sin(angle) * distance;
+                
+                this.renderer.ctx.beginPath();
+                this.renderer.ctx.arc(particleX, particleY, 1, 0, Math.PI * 2);
+                this.renderer.ctx.fill();
+            }
+            
+            this.renderer.ctx.restore();
+        }
     }
 
     getElevation(x, y) {
@@ -1347,9 +1479,7 @@ class GolfCourse {    constructor(renderer) {
         }
         
         return 0;
-    }
-
-    getHoleInfo() {
+    }    getHoleInfo() {
         if (!this.currentHole) return "No hole generated";
         
         const yardage = Math.floor(distance(
@@ -1360,5 +1490,116 @@ class GolfCourse {    constructor(renderer) {
         ) * 3); // Convert to approximate yards
         
         return `Par ${this.currentHole.par} - ${yardage} yards`;
+    }
+
+    renderHoleInOneCelebration() {
+        // Show a celebration effect at the hole location
+        const hole = this.currentHole.green.pin;
+        const holeScreen = this.renderer.transformPoint(hole.x, hole.y, 0);
+        
+        this.renderer.ctx.save();
+        
+        // Draw golden celebration rings expanding from the hole
+        const now = Date.now();
+        const celebrationTime = now - (this.ballAnimation.celebrationStart || now);
+        
+        if (!this.ballAnimation.celebrationStart) {
+            this.ballAnimation.celebrationStart = now;
+        }
+        
+        // Draw multiple expanding golden rings
+        for (let i = 0; i < 3; i++) {
+            const ringDelay = i * 200; // Each ring starts 200ms after the previous
+            const ringTime = Math.max(0, celebrationTime - ringDelay);
+            const ringDuration = 1500; // Each ring lasts 1.5 seconds
+            
+            if (ringTime > 0 && ringTime < ringDuration) {
+                const progress = ringTime / ringDuration;
+                const radius = progress * 30; // Rings expand to 30 units
+                const alpha = 0.8 * (1 - progress); // Fade out as they expand
+                
+                this.renderer.ctx.globalAlpha = alpha;
+                this.renderer.ctx.strokeStyle = '#FFD700'; // Golden color
+                this.renderer.ctx.lineWidth = 3;
+                this.renderer.ctx.beginPath();
+                this.renderer.ctx.arc(holeScreen.x, holeScreen.y, radius * this.renderer.scale, 0, Math.PI * 2);
+                this.renderer.ctx.stroke();
+            }
+        }
+          // Add sparkle effects
+        if (celebrationTime < 3000) { // Show sparkles for 3 seconds
+            for (let i = 0; i < 8; i++) {
+                const sparkleAngle = (i / 8) * Math.PI * 2 + celebrationTime * 0.01;
+                const sparkleDistance = 25 + Math.sin(celebrationTime * 0.005 + i) * 10;
+                const sparkleX = holeScreen.x + Math.cos(sparkleAngle) * sparkleDistance;
+                const sparkleY = holeScreen.y + Math.sin(sparkleAngle) * sparkleDistance;
+                
+                this.renderer.ctx.globalAlpha = 1;
+                this.renderer.ctx.fillStyle = '#FFFF00';
+                this.renderer.ctx.beginPath();
+                this.renderer.ctx.arc(sparkleX, sparkleY, 2, 0, Math.PI * 2);
+                this.renderer.ctx.fill();
+            }
+        }
+        
+        this.renderer.ctx.restore();
+    }
+
+    renderWaterSplashEffect() {
+        // Show a splash effect at the ball's last position
+        const ball = this.golfBall;
+        const splashScreen = this.renderer.transformPoint(ball.x, ball.y, 0);
+        
+        this.renderer.ctx.save();
+        
+        const now = Date.now();
+        const splashTime = now - (this.ballAnimation.splashStart || now);
+        
+        if (!this.ballAnimation.splashStart) {
+            this.ballAnimation.splashStart = now;
+        }
+        
+        const splashDuration = 1000; // Splash lasts 1 second
+        
+        if (splashTime < splashDuration) {
+            const progress = splashTime / splashDuration;
+            
+            // Draw expanding water ripples
+            for (let i = 0; i < 3; i++) {
+                const rippleDelay = i * 150;
+                const rippleTime = Math.max(0, splashTime - rippleDelay);
+                const rippleProgress = rippleTime / splashDuration;
+                
+                if (rippleProgress > 0 && rippleProgress < 1) {
+                    const radius = rippleProgress * 20;
+                    const alpha = 0.6 * (1 - rippleProgress);
+                    
+                    this.renderer.ctx.globalAlpha = alpha;
+                    this.renderer.ctx.strokeStyle = '#4FC3F7'; // Water blue
+                    this.renderer.ctx.lineWidth = 2;
+                    this.renderer.ctx.beginPath();
+                    this.renderer.ctx.arc(splashScreen.x, splashScreen.y, radius * this.renderer.scale, 0, Math.PI * 2);
+                    this.renderer.ctx.stroke();
+                }
+            }
+            
+            // Draw splash droplets
+            if (progress < 0.5) {
+                const dropletCount = 12;
+                for (let i = 0; i < dropletCount; i++) {
+                    const angle = (i / dropletCount) * Math.PI * 2;
+                    const distance = progress * 15;
+                    const dropletX = splashScreen.x + Math.cos(angle) * distance * this.renderer.scale;
+                    const dropletY = splashScreen.y + Math.sin(angle) * distance * this.renderer.scale - (progress * 10);
+                    
+                    this.renderer.ctx.globalAlpha = 0.7 * (1 - progress * 2);
+                    this.renderer.ctx.fillStyle = '#81D4FA';
+                    this.renderer.ctx.beginPath();
+                    this.renderer.ctx.arc(dropletX, dropletY, 1.5, 0, Math.PI * 2);                    this.renderer.ctx.fill();
+                }
+            }
+        }
+        
+        this.renderer.ctx.restore();
     }
 }
