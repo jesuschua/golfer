@@ -301,8 +301,8 @@ class GolfCourse {    constructor(renderer) {
         const distance = Math.sqrt(xDistance * xDistance + yDistance * yDistance);
         
         // Add randomness to speed (±30% variation)
-        const baseSpeed = 18;
-        const speedVariation = random(3, 4);
+        const baseSpeed = 20;
+        const speedVariation = random(2, 2.7);
         const speed = baseSpeed * speedVariation;
         
         // Add randomness to direction (±15 degree variation)
