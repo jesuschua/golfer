@@ -36,108 +36,19 @@ class GolfScreensaver {
         
         console.log('Golf Screensaver initialized successfully!');
     }    setupEventListeners() {
-        // Regenerate button
-        const regenerateBtn = document.getElementById('regenerateBtn');
-        if (regenerateBtn) {
-            regenerateBtn.addEventListener('click', () => {
-                this.generateNewHole();
-            });
-        }
-
-        // Launch ball button
-        const launchBallBtn = document.getElementById('launchBallBtn');
-        if (launchBallBtn) {
-            launchBallBtn.addEventListener('click', () => {
-                this.launchBall();
-            });
-        }
-
-        // Canvas click for interaction
-        this.renderer.canvas.addEventListener('click', () => {
-            this.generateNewHole();
-        });
-
-        // Keyboard shortcuts
+        // Keyboard shortcuts for screensaver functionality
         document.addEventListener('keydown', (event) => {
             switch(event.key) {
-                case ' ': // Spacebar
-                case 'Enter':
-                    this.generateNewHole();
-                    break;
-                case 'b': // 'B' for ball
-                case 'B':
-                    this.launchBall();
-                    break;
                 case 'Escape':
                     this.toggleFullscreen();
                     break;
             }
         });
 
-        // Auto-regenerate every 30 seconds for screensaver effect
+        // Auto-regenerate for screensaver effect
         this.autoRegenerate();
-    }    generateNewHole() {
-        this.golfCourse.generateNewHole();
-        this.updateHoleInfo();
-        this.updateBallStatus();
-        this.render();
-    }
-
-    launchBall() {
-        if (this.golfCourse) {
-            this.golfCourse.startBallAnimation();
-            this.updateBallStatus();
-            console.log('Ball launched manually');
-        }
-    }
-
-    updateHoleInfo() {
-        const holeInfo = document.getElementById('holeInfo');
-        if (holeInfo && this.golfCourse) {
-            holeInfo.textContent = this.golfCourse.getHoleInfo();
-        }
-    }    updateBallStatus() {
-        const ballStatus = document.getElementById('ballStatus');
-        if (ballStatus && this.golfCourse) {
-            let isFlying = false;
-            
-            // Check if ball exists and is in a "flying" state based on actual physics
-            if (this.golfCourse.golfBall && this.golfCourse.ballAnimation) {
-                const ball = this.golfCourse.golfBall;
-                const animation = this.golfCourse.ballAnimation;
-                
-                // Ball is "Flying" if:
-                // 1. Ball is visible (z >= -2, same threshold as renderBall)
-                // 2. Ball has significant motion (horizontal or vertical velocity)
-                // 3. Ball is in the air (z > 0.1) OR has significant velocity
-                
-                const ballVisible = ball.z >= -2;
-                const hasVelocity = animation.velocity && (
-                    Math.abs(animation.velocity.x) > 1 || 
-                    Math.abs(animation.velocity.y) > 1 || 
-                    Math.abs(animation.velocity.z) > 1
-                );
-                const inAir = ball.z > 0.1;
-                
-                // Ball is flying if it's visible AND (in air OR moving significantly)
-                isFlying = ballVisible && (inAir || hasVelocity);
-                
-                // Debug logging when status changes
-                if (this.lastBallStatus !== `Ball: ${isFlying ? 'Flying' : 'Ready'}`) {
-                    console.log(`🔄 Ball status: ${isFlying ? 'Flying' : 'Ready'}`);
-                    console.log(`   Visible: ${ballVisible} (z: ${ball.z.toFixed(2)})`);
-                    console.log(`   Has velocity: ${hasVelocity} (${animation.velocity ? `${animation.velocity.x.toFixed(1)}, ${animation.velocity.y.toFixed(1)}, ${animation.velocity.z.toFixed(1)}` : 'no velocity'})`);
-                    console.log(`   In air: ${inAir}`);
-                }
-            }
-            
-            const statusText = `Ball: ${isFlying ? 'Flying' : 'Ready'}`;
-            ballStatus.textContent = statusText;
-            this.lastBallStatus = statusText;
-        }
-    }render() {
+    }    render() {
         this.golfCourse.render();
-        this.updateBallStatus(); // Update ball status every frame
     }startRenderLoop() {
         const renderFrame = (timestamp) => {
             // Always render for smooth animation
@@ -154,10 +65,11 @@ class GolfScreensaver {
             this.animationId = null;
         }
     }    autoRegenerate() {
-        // Generate a new hole every 2 minutes for contemplative viewing
+        // Generate a new hole every 30 seconds for dynamic screensaver viewing
         setInterval(() => {
-            this.generateNewHole();
-        }, 10000);
+            this.golfCourse.generateNewHole();
+            console.log('🔄 Auto-generated new hole for screensaver');
+        }, 30000); // 30 seconds = 30,000ms
     }
 
     toggleFullscreen() {

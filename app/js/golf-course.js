@@ -694,7 +694,7 @@ class GolfCourse {    constructor(renderer) {
         }
         
         // Additional safety check: If ball is very far from course and falling, stop eventually
-        if (isOutOfBounds && elapsed > 8000) { // 8 seconds max for out-of-bounds falling
+        if (isOutOfBounds && elapsed > 15000) { // 8 seconds max for out-of-bounds falling
             this.ballAnimation.active = false;
             console.log(`⏰ Ball animation timed out while falling out of bounds`);
             return;

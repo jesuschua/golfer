@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detailed FPS Analysis - Golf Screensaver</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .golf-container {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+            margin-bottom: 20px;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .status.good { background: #d4edda; color: #155724; }
+        .status.warning { background: #fff3cd; color: #856404; }
+        .status.critical { background: #f8d7da; color: #721c24; }
+        .chart-container {
+            height: 200px;
+            background: white;
+            border: 1px solid #ddd;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .fps-chart {
+            width: 100%;
+            height: 180px;
+        }
+        .details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .browser-info {
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .test-controls {
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        .btn:hover { background: #0056b3; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏌️ Detailed FPS Analysis for Golf Screensaver</h1>
+        
+        <div class="browser-info" id="browserInfo">
+            Loading browser information...
+        </div>
+        
+        <div class="test-controls">
+            <h3>Performance Tests</h3>
+            <button class="btn" onclick="startStressTest()">🔥 Start Stress Test</button>
+            <button class="btn" onclick="measureRenderTime()">⏱️ Measure Render Time</button>
+            <button class="btn" onclick="testSeraphicCompatibility()">🛡️ Test Seraphic Compatibility</button>
+            <button class="btn" onclick="clearLogs()">🧹 Clear Logs</button>
+        </div>
+        
+        <iframe src="app/index.html" class="golf-container" id="golfFrame"></iframe>
+        
+        <div class="metrics">
+            <div class="metric-card">
+                <div class="metric-value" id="currentFPS">-- FPS</div>
+                <div class="metric-label">Current Frame Rate</div>
+                <div class="status" id="fpsStatus">Measuring...</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-value" id="avgFPS">-- FPS</div>
+                <div class="metric-label">Average FPS (30s)</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-value" id="minFPS">-- FPS</div>
+                <div class="metric-label">Minimum FPS</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-value" id="frameDrops">--</div>
+                <div class="metric-label">Frame Drops</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-value" id="renderTime">-- ms</div>
+                <div class="metric-label">Render Time</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-value" id="memoryUsage">-- MB</div>
+                <div class="metric-label">Memory Usage</div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h3>FPS Chart (Real-time)</h3>
+            <canvas class="fps-chart" id="fpsChart" width="800" height="180"></canvas>
+        </div>
+        
+        <div class="details">
+            <h3>🛡️ Seraphic Security Compatibility</h3>
+            <div id="seraphicStatus">Analyzing...</div>
+            <div id="seraphicRecommendations"></div>
+        </div>
+        
+        <div class="log" id="logOutput">
+            Starting FPS analysis...<br>
+        </div>
+    </div>
+
+    <script>
+        // Performance tracking
+        let fpsHistory = [];
+        let frameDropCount = 0;
+        let lastFrameTime = performance.now();
+        let renderTimes = [];
+        let analysisStartTime = Date.now();
+        
+        // Chart setup
+        const canvas = document.getElementById('fpsChart');
+        const ctx = canvas.getContext('2d');
+        const maxDataPoints = 150;
+        
+        function log(message, type = 'info') {
+            const logOutput = document.getElementById('logOutput');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'color: red;' : type === 'warning' ? 'color: orange;' : 'color: green;';
+            logOutput.innerHTML += `<span style="${className}">[${timestamp}] ${message}</span><br>`;
+            logOutput.scrollTop = logOutput.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logOutput').innerHTML = 'Logs cleared.<br>';
+        }
+        
+        function initializeBrowserInfo() {
+            const info = document.getElementById('browserInfo');
+            const userAgent = navigator.userAgent;
+            const platform = navigator.platform;
+            const memory = performance.memory ? 
+                `Memory: ${Math.round(performance.memory.usedJSHeapSize / 1024 / 1024)}MB used / ${Math.round(performance.memory.totalJSHeapSize / 1024 / 1024)}MB total` : 
+                'Memory info not available';
+            
+            info.innerHTML = `
+                Browser: ${userAgent}<br>
+                Platform: ${platform}<br>
+                ${memory}<br>
+                Hardware Concurrency: ${navigator.hardwareConcurrency || 'Unknown'} cores<br>
+                Device Memory: ${navigator.deviceMemory || 'Unknown'} GB
+            `;
+        }
+        
+        function updateFPSChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (fpsHistory.length < 2) return;
+            
+            // Draw grid
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            
+            // Horizontal grid lines
+            for (let i = 0; i <= 6; i++) {
+                const y = (i / 6) * canvas.height;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+                
+                // FPS labels
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.fillText(`${60 - i * 10}`, 5, y - 5);
+            }
+            
+            // Draw FPS line
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const stepX = canvas.width / (maxDataPoints - 1);
+            fpsHistory.forEach((fps, index) => {
+                const x = index * stepX;
+                const y = canvas.height - (fps / 60) * canvas.height;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw critical threshold line (45 FPS)
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            const thresholdY = canvas.height - (45 / 60) * canvas.height;
+            ctx.moveTo(0, thresholdY);
+            ctx.lineTo(canvas.width, thresholdY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Label
+            ctx.fillStyle = '#dc3545';
+            ctx.fillText('45 FPS (Seraphic threshold)', 10, thresholdY - 5);
+        }
+        
+        function updateMetrics() {
+            try {
+                const iframe = document.getElementById('golfFrame');
+                const iframeWindow = iframe.contentWindow;
+                
+                if (iframeWindow && iframeWindow.performanceMonitor) {
+                    const fps = iframeWindow.performanceMonitor.currentFPS || 0;
+                    
+                    // Update current FPS
+                    document.getElementById('currentFPS').textContent = fps + ' FPS';
+                    
+                    // Track FPS history
+                    fpsHistory.push(fps);
+                    if (fpsHistory.length > maxDataPoints) {
+                        fpsHistory.shift();
+                    }
+                    
+                    // Calculate statistics
+                    if (fpsHistory.length > 0) {
+                        const avgFPS = Math.round(fpsHistory.reduce((a, b) => a + b) / fpsHistory.length);
+                        const minFPS = Math.min(...fpsHistory);
+                        
+                        document.getElementById('avgFPS').textContent = avgFPS + ' FPS';
+                        document.getElementById('minFPS').textContent = minFPS + ' FPS';
+                        
+                        // Count frame drops (FPS below 50)
+                        const drops = fpsHistory.filter(f => f < 50).length;
+                        document.getElementById('frameDrops').textContent = drops;
+                        
+                        // Update FPS status
+                        const statusEl = document.getElementById('fpsStatus');
+                        if (fps >= 55) {
+                            statusEl.textContent = 'Excellent';
+                            statusEl.className = 'status good';
+                        } else if (fps >= 45) {
+                            statusEl.textContent = 'Good';
+                            statusEl.className = 'status warning';
+                        } else {
+                            statusEl.textContent = 'Poor';
+                            statusEl.className = 'status critical';
+                        }
+                    }
+                    
+                    updateFPSChart();
+                    updateSeraphicStatus(fps);
+                }
+                
+                // Update memory usage
+                if (performance.memory) {
+                    const memoryMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                    document.getElementById('memoryUsage').textContent = memoryMB + ' MB';
+                }
+                
+            } catch (e) {
+                log(`Error updating metrics: ${e.message}`, 'error');
+            }
+        }
+        
+        function updateSeraphicStatus(currentFPS) {
+            const statusEl = document.getElementById('seraphicStatus');
+            const recommendationsEl = document.getElementById('seraphicRecommendations');
+            
+            const isCompatible = currentFPS >= 45;
+            const timeRunning = (Date.now() - analysisStartTime) / 1000;
+            
+            if (isCompatible) {
+                statusEl.innerHTML = `
+                    <div class="status good">
+                        ✅ SERAPHIC COMPATIBLE (${currentFPS} FPS ≥ 45 FPS threshold)
+                    </div>
+                    <p>The application is running at sufficient FPS to avoid Seraphic security warnings.</p>
+                `;
+                
+                if (timeRunning > 30) {
+                    recommendationsEl.innerHTML = `
+                        <h4>✅ Analysis Complete</h4>
+                        <p>After ${Math.round(timeRunning)} seconds of monitoring, the golf screensaver maintains good performance.</p>
+                    `;
+                }
+            } else {
+                statusEl.innerHTML = `
+                    <div class="status critical">
+                        ⚠️ SERAPHIC INCOMPATIBLE (${currentFPS} FPS < 45 FPS threshold)
+                    </div>
+                    <p>The application may trigger Seraphic security warnings due to low FPS.</p>
+                `;
+                
+                recommendationsEl.innerHTML = `
+                    <h4>🔧 Recommendations</h4>
+                    <ul>
+                        <li>Check browser hardware acceleration settings</li>
+                        <li>Close other browser tabs and applications</li>
+                        <li>Try a different browser (Chrome/Edge recommended)</li>
+                        <li>Update graphics drivers</li>
+                        <li>Check for background processes consuming CPU</li>
+                    </ul>
+                `;
+            }
+        }
+        
+        function measureRenderTime() {
+            log('Starting render time measurement...', 'info');
+            
+            const iframe = document.getElementById('golfFrame');
+            const iframeWindow = iframe.contentWindow;
+            
+            if (iframeWindow && iframeWindow.screensaver) {
+                const times = [];
+                
+                for (let i = 0; i < 10; i++) {
+                    const startTime = performance.now();
+                    iframeWindow.screensaver.render();
+                    const endTime = performance.now();
+                    times.push(endTime - startTime);
+                }
+                
+                const avgTime = times.reduce((a, b) => a + b) / times.length;
+                const maxTime = Math.max(...times);
+                
+                document.getElementById('renderTime').textContent = avgTime.toFixed(2) + ' ms';
+                
+                log(`Render time analysis: Average ${avgTime.toFixed(2)}ms, Max ${maxTime.toFixed(2)}ms`, 
+                    avgTime > 16 ? 'warning' : 'info');
+            }
+        }
+        
+        function startStressTest() {
+            log('Starting stress test - rapid hole generation...', 'info');
+            
+            const iframe = document.getElementById('golfFrame');
+            const iframeWindow = iframe.contentWindow;
+            
+            if (iframeWindow && iframeWindow.screensaver) {
+                let count = 0;
+                const maxCount = 20;
+                
+                const stressInterval = setInterval(() => {
+                    count++;
+                    const startTime = performance.now();
+                    iframeWindow.screensaver.generateNewHole();
+                    const endTime = performance.now();
+                    
+                    log(`Stress test ${count}/${maxCount}: Generation took ${(endTime - startTime).toFixed(2)}ms`);
+                    
+                    if (count >= maxCount) {
+                        clearInterval(stressInterval);
+                        log('Stress test completed', 'info');
+                    }
+                }, 500);
+            }
+        }
+        
+        function testSeraphicCompatibility() {
+            log('Testing Seraphic compatibility...', 'info');
+            
+            const iframe = document.getElementById('golfFrame');
+            const iframeWindow = iframe.contentWindow;
+            
+            if (iframeWindow && iframeWindow.performanceMonitor) {
+                const testDuration = 15000; // 15 seconds
+                const samples = [];
+                let sampleCount = 0;
+                
+                const testInterval = setInterval(() => {
+                    const fps = iframeWindow.performanceMonitor.currentFPS;
+                    if (fps) {
+                        samples.push(fps);
+                        sampleCount++;
+                        
+                        if (sampleCount % 5 === 0) {
+                            log(`Seraphic test sample ${sampleCount}: ${fps} FPS`);
+                        }
+                    }
+                }, 200);
+                
+                setTimeout(() => {
+                    clearInterval(testInterval);
+                    
+                    if (samples.length > 0) {
+                        const avgFPS = samples.reduce((a, b) => a + b) / samples.length;
+                        const minFPS = Math.min(...samples);
+                        const belowThreshold = samples.filter(f => f < 45).length;
+                        const percentBelow = (belowThreshold / samples.length) * 100;
+                        
+                        log(`Seraphic compatibility test results:`, 'info');
+                        log(`  Average FPS: ${avgFPS.toFixed(1)}`, avgFPS >= 45 ? 'info' : 'warning');
+                        log(`  Minimum FPS: ${minFPS}`, minFPS >= 45 ? 'info' : 'warning');
+                        log(`  Samples below 45 FPS: ${belowThreshold}/${samples.length} (${percentBelow.toFixed(1)}%)`, 
+                            percentBelow < 10 ? 'info' : 'warning');
+                        
+                        if (percentBelow < 5) {
+                            log('✅ SERAPHIC COMPATIBLE - Consistently high FPS', 'info');
+                        } else if (percentBelow < 20) {
+                            log('⚠️ MARGINAL - May occasionally trigger Seraphic warnings', 'warning');
+                        } else {
+                            log('❌ INCOMPATIBLE - Likely to trigger Seraphic warnings', 'error');
+                        }
+                    }
+                }, testDuration);
+            }
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeBrowserInfo();
+            log('FPS analysis tool initialized', 'info');
+            
+            // Start monitoring
+            setInterval(updateMetrics, 200);
+            
+            // Wait for iframe to load
+            setTimeout(() => {
+                log('Starting performance monitoring...', 'info');
+            }, 2000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Performance Validation - Golf Screensaver</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #2c5530;
+            margin-bottom: 30px;
+        }
+        .test-panel {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .controls {
+            flex: 1;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .stats {
+            flex: 2;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .golf-container {
+            width: 100%;
+            height: 600px;
+            border: 2px solid #2c5530;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .results {
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 15px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px;
+            background: #f9f9f9;
+            border-radius: 3px;
+        }
+        .success { color: #4CAF50; }
+        .warning { color: #ff9800; }
+        .error { color: #f44336; }
+        .info { color: #2196F3; }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .status-card {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .memory-chart {
+            width: 100%;
+            height: 100px;
+            border: 1px solid #ddd;
+            margin: 10px 0;
+            background: linear-gradient(to right, #e8f5e8 0%, #ffebe8 100%);
+            position: relative;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏌️ Final Performance Validation</h1>
+            <p>Comprehensive test to validate that lag issues after 5+ rounds are completely resolved</p>
+        </div>
+
+        <div class="test-panel">
+            <div class="controls">
+                <h3>🧪 Test Controls</h3>
+                <button onclick="startLagTest()" id="lagTestBtn">🚀 Start 20-Round Lag Test</button>
+                <button onclick="startMemoryTest()" id="memoryTestBtn">🧠 Memory Leak Test</button>
+                <button onclick="startSelfRunningTest()" id="selfRunningBtn">🤖 Self-Running Test (120s)</button>
+                <button onclick="resetAllTests()" id="resetBtn">🔄 Reset All Tests</button>
+                
+                <div style="margin-top: 15px;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                    </div>
+                    <div id="progressText">Ready to start testing</div>
+                </div>
+            </div>
+
+            <div class="stats">
+                <h3>📊 Performance Metrics</h3>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <strong>Rounds Generated</strong>
+                        <div id="roundCount">0</div>
+                    </div>
+                    <div class="status-card">
+                        <strong>Memory Usage</strong>
+                        <div id="memoryUsage">0 MB</div>
+                    </div>
+                    <div class="status-card">
+                        <strong>Generation Time</strong>
+                        <div id="avgGenTime">0 ms</div>
+                    </div>
+                    <div class="status-card">
+                        <strong>Frame Rate</strong>
+                        <div id="currentFPS">60 FPS</div>
+                    </div>
+                </div>
+                
+                <div class="memory-chart" id="memoryChart"></div>
+                
+                <div class="metric">
+                    <span>Peak Memory:</span>
+                    <span id="peakMemory">0 MB</span>
+                </div>
+                <div class="metric">
+                    <span>Memory Trend:</span>
+                    <span id="memoryTrend" class="success">✅ Stable</span>
+                </div>
+                <div class="metric">
+                    <span>Timers Active:</span>
+                    <span id="activeTimers">0</span>
+                </div>
+            </div>
+        </div>
+
+        <iframe src="app/index.html" class="golf-container" id="golfFrame"></iframe>
+
+        <div class="results" id="testResults"></div>
+    </div>
+
+    <script>
+        let performanceData = {
+            roundsGenerated: 0,
+            ballsLaunched: 0,
+            memoryReadings: [],
+            generationTimes: [],
+            fpsReadings: [],
+            startTime: Date.now(),
+            peakMemory: 0,
+            activeTest: null,
+            memoryTrend: 'stable'
+        };
+
+        function logResult(message, type = 'info') {
+            const results = document.getElementById('testResults');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            results.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function updateProgress(current, total) {
+            const percentage = Math.round((current / total) * 100);
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = 
+                `Progress: ${current}/${total} (${percentage}%)`;
+        }
+
+        // Memory monitoring with enhanced leak detection
+        function collectMemoryStats() {
+            if (performance.memory) {
+                const usedMB = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                const totalMB = Math.round(performance.memory.totalJSHeapSize / 1024 / 1024);
+                
+                performanceData.memoryReadings.push({
+                    used: usedMB,
+                    total: totalMB,
+                    timestamp: Date.now()
+                });
+
+                // Keep only last 50 readings for trend analysis
+                if (performanceData.memoryReadings.length > 50) {
+                    performanceData.memoryReadings.shift();
+                }
+
+                // Update peak memory
+                if (usedMB > performanceData.peakMemory) {
+                    performanceData.peakMemory = usedMB;
+                }
+
+                // Analyze memory trend
+                if (performanceData.memoryReadings.length >= 10) {
+                    const recent = performanceData.memoryReadings.slice(-10);
+                    const oldAvg = recent.slice(0, 5).reduce((sum, r) => sum + r.used, 0) / 5;
+                    const newAvg = recent.slice(-5).reduce((sum, r) => sum + r.used, 0) / 5;
+                    const trend = newAvg - oldAvg;
+
+                    if (trend > 5) {
+                        performanceData.memoryTrend = 'increasing';
+                    } else if (trend < -2) {
+                        performanceData.memoryTrend = 'decreasing';
+                    } else {
+                        performanceData.memoryTrend = 'stable';
+                    }
+                }
+
+                updateMemoryDisplay(usedMB, totalMB);
+            }
+        }
+
+        function updateMemoryDisplay(used, total) {
+            document.getElementById('memoryUsage').textContent = `${used}/${total} MB`;
+            document.getElementById('peakMemory').textContent = `${performanceData.peakMemory} MB`;
+            
+            const trendElement = document.getElementById('memoryTrend');
+            const trend = performanceData.memoryTrend;
+            
+            if (trend === 'increasing') {
+                trendElement.innerHTML = '⚠️ Increasing';
+                trendElement.className = 'warning';
+            } else if (trend === 'decreasing') {
+                trendElement.innerHTML = '📉 Decreasing';
+                trendElement.className = 'info';
+            } else {
+                trendElement.innerHTML = '✅ Stable';
+                trendElement.className = 'success';
+            }
+
+            // Update memory chart
+            updateMemoryChart();
+        }
+
+        function updateMemoryChart() {
+            const chart = document.getElementById('memoryChart');
+            if (performanceData.memoryReadings.length < 2) return;
+
+            const readings = performanceData.memoryReadings.slice(-20); // Last 20 readings
+            const maxMemory = Math.max(...readings.map(r => r.used));
+            const minMemory = Math.min(...readings.map(r => r.used));
+            const range = Math.max(1, maxMemory - minMemory);
+
+            // Simple text-based visualization
+            const points = readings.map((reading, index) => {
+                const height = ((reading.used - minMemory) / range) * 80 + 10;
+                const x = (index / (readings.length - 1)) * 95 + 2.5;
+                return `${x.toFixed(1)}% ${(90 - height).toFixed(1)}%`;
+            }).join(', ');
+
+            chart.innerHTML = `
+                <div style="position: absolute; top: 5px; left: 5px; font-size: 10px; color: #666;">
+                    Memory: ${minMemory}MB - ${maxMemory}MB
+                </div>
+                <div style="position: absolute; bottom: 5px; right: 5px; font-size: 10px; color: #666;">
+                    ${readings.length} samples
+                </div>
+            `;
+        }        // Performance monitoring for the embedded golf app
+        function monitorEmbeddedApp() {
+            const iframe = document.getElementById('golfFrame');
+            try {
+                const iframeWindow = iframe.contentWindow;
+                if (iframeWindow && iframeWindow.screensaver) {
+                    const screensaver = iframeWindow.screensaver;
+                    
+                    // Monitor generation count
+                    if (screensaver.golfCourse && screensaver.golfCourse.holes) {
+                        const newRoundCount = screensaver.golfCourse.holes.length;
+                        if (newRoundCount > performanceData.roundsGenerated) {
+                            performanceData.roundsGenerated = newRoundCount;
+                            document.getElementById('roundCount').textContent = newRoundCount;
+                        }
+                    }
+
+                    // Monitor actual FPS from performance monitor
+                    if (iframeWindow.performanceMonitor && iframeWindow.performanceMonitor.currentFPS) {
+                        const fps = iframeWindow.performanceMonitor.currentFPS;
+                        document.getElementById('currentFPS').textContent = fps + ' FPS';
+                        
+                        // Track FPS readings for analysis
+                        performanceData.fpsReadings.push(fps);
+                        if (performanceData.fpsReadings.length > 10) {
+                            performanceData.fpsReadings.shift();
+                        }
+                        
+                        // Alert if FPS is consistently low
+                        if (performanceData.fpsReadings.length >= 5) {
+                            const avgFPS = performanceData.fpsReadings.reduce((a, b) => a + b, 0) / performanceData.fpsReadings.length;
+                            if (avgFPS < 45) {
+                                logResult(`⚠️ Low FPS detected: Average ${avgFPS.toFixed(1)} FPS over last 5 readings`, 'warning');
+                            }
+                        }
+                    }
+
+                    // Monitor active timers (estimate)
+                    let activeTimers = 0;
+                    if (screensaver.autoRegenerateTimer) activeTimers++;
+                    if (screensaver.golfCourse && screensaver.golfCourse.nextBallTimer) activeTimers++;
+                    if (screensaver.animationId) activeTimers++;
+                    
+                    document.getElementById('activeTimers').textContent = activeTimers;
+                }
+            } catch (e) {
+                // Ignore cross-origin issues
+            }
+        }
+
+        // Test: 20-Round Lag Test
+        async function startLagTest() {
+            if (performanceData.activeTest) return;
+            
+            performanceData.activeTest = 'lag';
+            document.getElementById('lagTestBtn').disabled = true;
+            
+            logResult('🚀 Starting 20-Round Lag Test...', 'info');
+            logResult('This test validates that performance remains stable after many generations', 'info');
+            
+            const iframe = document.getElementById('golfFrame');
+            const maxRounds = 20;
+            let currentRound = 0;
+            
+            const testInterval = setInterval(() => {
+                currentRound++;
+                updateProgress(currentRound, maxRounds);
+                
+                // Trigger new hole generation
+                try {
+                    const iframeWindow = iframe.contentWindow;
+                    if (iframeWindow && iframeWindow.screensaver) {
+                        const startTime = performance.now();
+                        iframeWindow.screensaver.generateNewHole();
+                        const endTime = performance.now();
+                        
+                        const genTime = endTime - startTime;
+                        performanceData.generationTimes.push(genTime);
+                        
+                        const avgTime = performanceData.generationTimes.reduce((a, b) => a + b, 0) / performanceData.generationTimes.length;
+                        document.getElementById('avgGenTime').textContent = `${avgTime.toFixed(1)} ms`;
+                        
+                        logResult(`Round ${currentRound}: Generation time ${genTime.toFixed(1)}ms`, 'info');
+                    }
+                } catch (e) {
+                    logResult(`Round ${currentRound}: Error - ${e.message}`, 'error');
+                }
+                
+                collectMemoryStats();
+                monitorEmbeddedApp();
+                
+                if (currentRound >= maxRounds) {
+                    clearInterval(testInterval);
+                    completeLagTest();
+                }
+            }, 2000); // 2 seconds between rounds
+        }
+
+        function completeLagTest() {
+            const avgGenTime = performanceData.generationTimes.reduce((a, b) => a + b, 0) / performanceData.generationTimes.length;
+            const maxGenTime = Math.max(...performanceData.generationTimes);
+            const minGenTime = Math.min(...performanceData.generationTimes);
+            
+            logResult('✅ 20-Round Lag Test Completed!', 'success');
+            logResult(`📊 Generation time stats:`, 'info');
+            logResult(`   Average: ${avgGenTime.toFixed(1)}ms`, 'info');
+            logResult(`   Range: ${minGenTime.toFixed(1)}ms - ${maxGenTime.toFixed(1)}ms`, 'info');
+            logResult(`   Peak memory: ${performanceData.peakMemory}MB`, 'info');
+            logResult(`   Memory trend: ${performanceData.memoryTrend}`, 'info');
+            
+            // Evaluate performance
+            const performanceGood = avgGenTime < 100 && maxGenTime < 500 && performanceData.memoryTrend !== 'increasing';
+            if (performanceGood) {
+                logResult('🎉 PERFORMANCE TEST PASSED - No lag detected after 20 rounds!', 'success');
+            } else {
+                logResult('⚠️ Performance concerns detected - review generation times and memory usage', 'warning');
+            }
+            
+            performanceData.activeTest = null;
+            document.getElementById('lagTestBtn').disabled = false;
+            updateProgress(0, 0);
+        }
+
+        // Test: Memory Leak Test
+        async function startMemoryTest() {
+            if (performanceData.activeTest) return;
+            
+            performanceData.activeTest = 'memory';
+            document.getElementById('memoryTestBtn').disabled = true;
+            
+            logResult('🧠 Starting Memory Leak Test...', 'info');
+            logResult('Generating 15 rounds and monitoring memory usage patterns', 'info');
+            
+            const initialMemory = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 0;
+            const iframe = document.getElementById('golfFrame');
+            const maxRounds = 15;
+            let currentRound = 0;
+            
+            const memoryTestInterval = setInterval(() => {
+                currentRound++;
+                updateProgress(currentRound, maxRounds);
+                
+                try {
+                    const iframeWindow = iframe.contentWindow;
+                    if (iframeWindow && iframeWindow.screensaver) {
+                        iframeWindow.screensaver.generateNewHole();
+                        
+                        // Also launch a ball to test full animation cycle
+                        setTimeout(() => {
+                            iframeWindow.screensaver.launchBall();
+                        }, 500);
+                    }
+                } catch (e) {
+                    logResult(`Memory test round ${currentRound}: Error - ${e.message}`, 'error');
+                }
+                
+                collectMemoryStats();
+                monitorEmbeddedApp();
+                
+                if (currentRound >= maxRounds) {
+                    clearInterval(memoryTestInterval);
+                    completeMemoryTest(initialMemory);
+                }
+            }, 3000); // 3 seconds between rounds
+        }
+
+        function completeMemoryTest(initialMemory) {
+            const finalMemory = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1024 / 1024) : 0;
+            const memoryIncrease = finalMemory - initialMemory;
+            const memoryIncreasePercent = initialMemory > 0 ? ((memoryIncrease / initialMemory) * 100) : 0;
+            
+            logResult('✅ Memory Leak Test Completed!', 'success');
+            logResult(`📊 Memory analysis:`, 'info');
+            logResult(`   Initial memory: ${initialMemory}MB`, 'info');
+            logResult(`   Final memory: ${finalMemory}MB`, 'info');
+            logResult(`   Memory increase: ${memoryIncrease}MB (${memoryIncreasePercent.toFixed(1)}%)`, 'info');
+            logResult(`   Peak memory: ${performanceData.peakMemory}MB`, 'info');
+            logResult(`   Memory trend: ${performanceData.memoryTrend}`, 'info');
+            
+            // Evaluate memory performance
+            const memoryHealthy = memoryIncrease < 20 && performanceData.memoryTrend !== 'increasing';
+            if (memoryHealthy) {
+                logResult('🎉 MEMORY TEST PASSED - No significant memory leaks detected!', 'success');
+            } else {
+                logResult('⚠️ Potential memory leak detected - monitor usage patterns', 'warning');
+            }
+            
+            performanceData.activeTest = null;
+            document.getElementById('memoryTestBtn').disabled = false;
+            updateProgress(0, 0);
+        }
+
+        // Test: Self-Running Test
+        async function startSelfRunningTest() {
+            if (performanceData.activeTest) return;
+            
+            performanceData.activeTest = 'selfrunning';
+            document.getElementById('selfRunningBtn').disabled = true;
+            
+            logResult('🤖 Starting Self-Running Test (120 seconds)...', 'info');
+            logResult('Monitoring automatic ball launches and generation behavior', 'info');
+            
+            const duration = 120; // 2 minutes
+            let elapsed = 0;
+            
+            const selfRunningInterval = setInterval(() => {
+                elapsed++;
+                updateProgress(elapsed, duration);
+                
+                collectMemoryStats();
+                monitorEmbeddedApp();
+                
+                if (elapsed >= duration) {
+                    clearInterval(selfRunningInterval);
+                    completeSelfRunningTest();
+                }
+            }, 1000);
+        }
+
+        function completeSelfRunningTest() {
+            logResult('✅ Self-Running Test Completed!', 'success');
+            logResult(`📊 Self-running behavior validated:`, 'info');
+            logResult(`   Total rounds generated: ${performanceData.roundsGenerated}`, 'info');
+            logResult(`   Memory remained stable: ${performanceData.memoryTrend}`, 'info');
+            logResult(`   Peak memory usage: ${performanceData.peakMemory}MB`, 'info');
+            
+            const selfRunningHealthy = performanceData.memoryTrend !== 'increasing' && performanceData.roundsGenerated > 0;
+            if (selfRunningHealthy) {
+                logResult('🎉 SELF-RUNNING TEST PASSED - Screensaver operates continuously without issues!', 'success');
+            } else {
+                logResult('⚠️ Self-running behavior needs attention', 'warning');
+            }
+            
+            performanceData.activeTest = null;
+            document.getElementById('selfRunningBtn').disabled = false;
+            updateProgress(0, 0);
+        }
+
+        function resetAllTests() {
+            if (performanceData.activeTest) {
+                logResult('⚠️ Cannot reset while test is running', 'warning');
+                return;
+            }
+            
+            performanceData = {
+                roundsGenerated: 0,
+                ballsLaunched: 0,
+                memoryReadings: [],
+                generationTimes: [],
+                fpsReadings: [],
+                startTime: Date.now(),
+                peakMemory: 0,
+                activeTest: null,
+                memoryTrend: 'stable'
+            };
+            
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('roundCount').textContent = '0';
+            document.getElementById('memoryUsage').textContent = '0 MB';
+            document.getElementById('avgGenTime').textContent = '0 ms';
+            document.getElementById('peakMemory').textContent = '0 MB';
+            document.getElementById('activeTimers').textContent = '0';
+            updateProgress(0, 0);
+            
+            logResult('🔄 All tests reset - ready for new validation', 'info');
+        }
+
+        // Start continuous monitoring
+        setInterval(() => {
+            if (!performanceData.activeTest) {
+                collectMemoryStats();
+                monitorEmbeddedApp();
+            }
+        }, 2000);
+
+        // Initial setup
+        logResult('🏌️ Final Performance Validation Tool Ready', 'success');
+        logResult('This tool validates that all memory leaks and performance issues have been resolved', 'info');
+        logResult('Run tests to ensure smooth operation after 5+ rounds of gameplay', 'info');
+    </script>
+</body>
+</html>
