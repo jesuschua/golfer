@@ -275,7 +275,7 @@ class GolfCourse {    constructor(renderer) {
         const startY = terrainCenterY + Math.sin(startAngle) * startDistance;console.log(`🎯 Ball targeted to ${targetFeature.type} at (${finalX.toFixed(1)}, ${finalY.toFixed(1)}) - Coming from direction toward hole at (${pin.x.toFixed(1)}, ${pin.y.toFixed(1)})`);        console.log(`📊 Target distribution: Green hits likely, fairway hits common, terrain grid squares common, other features possible`);
 
         // Calculate random starting height for variety
-        const startHeight = random(6, 12);        this.ballAnimation = {
+        const startHeight = random(6, 50);        this.ballAnimation = {
             active: true,
             startTime: Date.now(),
             duration: 15000, // 15 seconds max (but physics can end it sooner)
@@ -302,7 +302,7 @@ class GolfCourse {    constructor(renderer) {
         
         // Add randomness to speed (±30% variation)
         const baseSpeed = 18;
-        const speedVariation = random(2, 3); // 70% to 130% of base speed
+        const speedVariation = random(3, 4);
         const speed = baseSpeed * speedVariation;
         
         // Add randomness to direction (±15 degree variation)
@@ -318,7 +318,7 @@ class GolfCourse {    constructor(renderer) {
         
         // Add randomness to vertical velocity (different trajectory arcs)
         const baseVerticalVelocity = 2;
-        const verticalVariation = random(0.5, 2.0); // 0.5 to 2.0 range
+        const verticalVariation = random(0.5, 5.0); // 0.5 to 2.0 range
         this.ballAnimation.velocity.z = baseVerticalVelocity * verticalVariation;        // Initialize the ball at starting position with random height variation
         this.golfBall = {
             x: startX,
