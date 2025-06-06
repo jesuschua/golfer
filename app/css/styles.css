@@ -36,3 +36,123 @@ body {
         border-radius: 4px;
     }
 }
+
+/* Fullscreen styles */
+:fullscreen {
+    background: #000;
+}
+
+:fullscreen body {
+    background: #000;
+    margin: 0;
+    padding: 0;
+}
+
+:fullscreen .screensaver-container {
+    background: #000;
+    width: 100vw;
+    height: 100vh;
+}
+
+:fullscreen #golfCanvas {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100vw !important;
+    height: 100vh !important;
+    cursor: none; /* Hide cursor in fullscreen */
+}
+
+/* WebKit fullscreen (Safari) */
+:-webkit-full-screen {
+    background: #000;
+}
+
+:-webkit-full-screen body {
+    background: #000;
+}
+
+:-webkit-full-screen .screensaver-container {
+    background: #000;
+}
+
+:-webkit-full-screen #golfCanvas {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100vw !important;
+    height: 100vh !important;
+    cursor: none;
+}
+
+/* Mozilla fullscreen (Firefox) */
+:-moz-full-screen {
+    background: #000;
+}
+
+:-moz-full-screen body {
+    background: #000;
+}
+
+:-moz-full-screen .screensaver-container {
+    background: #000;
+}
+
+:-moz-full-screen #golfCanvas {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100vw !important;
+    height: 100vh !important;
+    cursor: none;
+}
+
+/* MS fullscreen (IE/Edge) */
+:-ms-fullscreen {
+    background: #000;
+}
+
+:-ms-fullscreen body {
+    background: #000;
+}
+
+:-ms-fullscreen .screensaver-container {
+    background: #000;
+}
+
+:-ms-fullscreen #golfCanvas {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    width: 100vw !important;
+    height: 100vh !important;
+    cursor: none;
+}
+
+/* Fullscreen hint overlay (shows briefly when page loads) */
+.fullscreen-hint {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 14px;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+.fullscreen-hint.fade-out {
+    opacity: 0;
+}
+
+/* Hide hint in fullscreen */
+:fullscreen .fullscreen-hint,
+:-webkit-full-screen .fullscreen-hint,
+:-moz-full-screen .fullscreen-hint,
+:-ms-fullscreen .fullscreen-hint {
+    display: none;
+}

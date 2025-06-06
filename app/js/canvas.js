@@ -8,27 +8,58 @@ class CanvasRenderer {
         this.terrainOffsetY = 0;  // Will be set dynamically
         this.setupCanvas();
         this.setupEventListeners();
-    }
-
-    setupCanvas() {
-        // Set canvas size to fill most of the screen
-        const margin = 100;
-        this.canvas.width = window.innerWidth - margin;
-        this.canvas.height = window.innerHeight - margin;
-          // Set the canvas center for isometric projection
+    }    setupCanvas() {
+        // Check if we're in fullscreen mode
+        const isFullscreen = !!(document.fullscreenElement || 
+                               document.webkitFullscreenElement || 
+                               document.mozFullScreenElement || 
+                               document.msFullscreenElement);
+        
+        if (isFullscreen) {
+            // In fullscreen, use the entire screen
+            this.canvas.width = window.innerWidth;
+            this.canvas.height = window.innerHeight;
+        } else {
+            // In windowed mode, leave some margin
+            const margin = 100;
+            this.canvas.width = window.innerWidth - margin;
+            this.canvas.height = window.innerHeight - margin;
+        }
+        
+        // Set the canvas center for isometric projection
         this.centerX = this.canvas.width / 2;
         this.centerY = this.canvas.height / 2;
         
         // Scale factor for the isometric view - increased for better visibility
         this.scale = 6;
-    }
-
-    setupEventListeners() {
+        
+        console.log(`📐 Canvas resized to ${this.canvas.width}x${this.canvas.height} (fullscreen: ${isFullscreen})`);
+    }    setupEventListeners() {
         // Handle window resize
         window.addEventListener('resize', () => {
             this.setupCanvas();
         });
-    }    // Clear the canvas with a serene sky background
+        
+        // Handle fullscreen changes
+        document.addEventListener('fullscreenchange', () => {
+            this.setupCanvas();
+        });
+        
+        // Handle webkit fullscreen changes (Safari)
+        document.addEventListener('webkitfullscreenchange', () => {
+            this.setupCanvas();
+        });
+        
+        // Handle moz fullscreen changes (Firefox)
+        document.addEventListener('mozfullscreenchange', () => {
+            this.setupCanvas();
+        });
+        
+        // Handle ms fullscreen changes (IE/Edge)
+        document.addEventListener('MSFullscreenChange', () => {
+            this.setupCanvas();
+        });
+    }// Clear the canvas with a serene sky background
     clear() {
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         gradient.addColorStop(0, '#f5f1e8');  // Warm cream
