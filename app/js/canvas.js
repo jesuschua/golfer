@@ -16,10 +16,11 @@ class CanvasRenderer {
                                document.msFullscreenElement);
         
         if (isFullscreen) {
-            // In fullscreen, account for border space (16px margin + 2px border on each side)
-            const borderSpace = 20; // 8px margin + 2px border on each side
-            this.canvas.width = window.innerWidth - borderSpace;
-            this.canvas.height = window.innerHeight - borderSpace;
+            // In fullscreen, account for the 50px padding on each side plus border space
+            const paddingSpace = 100; // 50px padding on each side
+            const borderSpace = 4; // 2px border on each side
+            this.canvas.width = window.innerWidth - paddingSpace - borderSpace;
+            this.canvas.height = window.innerHeight - paddingSpace - borderSpace;
         } else {
             // In windowed mode, leave some margin
             const margin = 100;

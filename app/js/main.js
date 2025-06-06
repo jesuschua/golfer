@@ -275,20 +275,6 @@ class GolfScreensaver {
         this.releaseWakeLock();
         this.clearFallbackSleepPrevention();
     }    setupFullscreenHint() {
-        const hint = document.getElementById('fullscreenHint');
-        if (hint) {
-            // Show hint for 5 seconds, then fade out
-            setTimeout(() => {
-                hint.classList.add('fade-out');
-                // Remove from DOM after fade completes
-                setTimeout(() => {
-                    if (hint.parentNode) {
-                        hint.parentNode.removeChild(hint);
-                    }
-                }, 500);
-            }, 5000);
-        }
-        
         // Setup persistent fullscreen message
         const fullscreenMessage = document.getElementById('fullscreenMessage');
         if (fullscreenMessage) {

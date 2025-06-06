@@ -39,20 +39,20 @@ body {
 
 /* Fullscreen styles */
 :fullscreen {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :fullscreen body {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
     margin: 0;
     padding: 0;
 }
 
 :fullscreen .screensaver-container {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
     width: 100vw;
     height: 100vh;
-    padding: 8px;
+    padding: 50px;
     box-sizing: border-box;
 }
 
@@ -65,16 +65,16 @@ body {
 
 /* WebKit fullscreen (Safari) */
 :-webkit-full-screen {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-webkit-full-screen body {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-webkit-full-screen .screensaver-container {
-    background: #000;
-    padding: 8px;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
+    padding: 50px;
     box-sizing: border-box;
 }
 
@@ -87,68 +87,48 @@ body {
 
 /* Mozilla fullscreen (Firefox) */
 :-moz-full-screen {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-moz-full-screen body {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-moz-full-screen .screensaver-container {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-moz-full-screen #golfCanvas {
     border: 2px solid #c4b49a;
     border-radius: 0;
     box-shadow: inset 0 0 0 1px rgba(196, 180, 154, 0.3), 0 0 20px rgba(196, 180, 154, 0.4);
-    width: calc(100vw - 16px) !important;
-    height: calc(100vh - 16px) !important;
-    margin: 8px;
+    width: calc(100vw - 100px) !important;
+    height: calc(100vh - 100px) !important;
+    margin: 0;
     cursor: none;
 }
 
 /* MS fullscreen (IE/Edge) */
 :-ms-fullscreen {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-ms-fullscreen body {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-ms-fullscreen .screensaver-container {
-    background: #000;
+    background: linear-gradient(135deg, #e8dcc0, #d4c4a0);
 }
 
 :-ms-fullscreen #golfCanvas {
     border: 2px solid #c4b49a;
     border-radius: 0;
     box-shadow: inset 0 0 0 1px rgba(196, 180, 154, 0.3), 0 0 20px rgba(196, 180, 154, 0.4);
-    width: calc(100vw - 16px) !important;
-    height: calc(100vh - 16px) !important;
-    margin: 8px;
+    width: calc(100vw - 100px) !important;
+    height: calc(100vh - 100px) !important;
+    margin: 0;
     cursor: none;
-}
-
-/* Fullscreen hint overlay (shows briefly when page loads) */
-.fullscreen-hint {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: rgba(0, 0, 0, 0.8);
-    color: white;
-    padding: 10px 15px;
-    border-radius: 5px;
-    font-size: 14px;
-    z-index: 1000;
-    opacity: 1;
-    transition: opacity 0.5s ease;
-    pointer-events: none;
-}
-
-.fullscreen-hint.fade-out {
-    opacity: 0;
 }
 
 /* Persistent fullscreen message (shows when not in fullscreen) */
@@ -176,11 +156,7 @@ body {
     opacity: 1;
 }
 
-/* Hide both hints in fullscreen */
-:fullscreen .fullscreen-hint,
-:-webkit-full-screen .fullscreen-hint,
-:-moz-full-screen .fullscreen-hint,
-:-ms-fullscreen .fullscreen-hint,
+/* Hide fullscreen message in fullscreen */
 :fullscreen .fullscreen-message,
 :-webkit-full-screen .fullscreen-message,
 :-moz-full-screen .fullscreen-message,
