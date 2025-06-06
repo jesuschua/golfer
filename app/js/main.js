@@ -157,7 +157,7 @@ class GolfScreensaver {
         // Generate a new hole every 2 minutes for contemplative viewing
         setInterval(() => {
             this.generateNewHole();
-        }, 120000);
+        }, 10000);
     }
 
     toggleFullscreen() {
