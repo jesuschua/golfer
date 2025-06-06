@@ -9,9 +9,9 @@ class GolfCourse {    constructor(renderer) {
             startTime: null,
             duration: 15000, // 15 seconds max duration
             bounces: 0,
-            maxBounces: 10,
-            bounceDecay: 0.85,
-            gravity: 9.8,
+            maxBounces: 8, // More realistic max bounce count for golf ball
+            bounceDecay: 0.65, // More realistic bounce decay (golf balls lose more energy)
+            gravity: 20, // Higher gravity for faster descent
             spin: 0,
             spinRate: 0,
             lastGroundTime: 0,
@@ -275,9 +275,7 @@ class GolfCourse {    constructor(renderer) {
         const startY = terrainCenterY + Math.sin(startAngle) * startDistance;console.log(`🎯 Ball targeted to ${targetFeature.type} at (${finalX.toFixed(1)}, ${finalY.toFixed(1)}) - Coming from direction toward hole at (${pin.x.toFixed(1)}, ${pin.y.toFixed(1)})`);        console.log(`📊 Target distribution: Green hits likely, fairway hits common, terrain grid squares common, other features possible`);
 
         // Calculate random starting height for variety
-        const startHeight = random(6, 12);
-
-        this.ballAnimation = {
+        const startHeight = random(6, 12);        this.ballAnimation = {
             active: true,
             startTime: Date.now(),
             duration: 15000, // 15 seconds max (but physics can end it sooner)
@@ -286,15 +284,16 @@ class GolfCourse {    constructor(renderer) {
             currentPos: { x: startX, y: startY, z: startHeight },
             velocity: { x: 0, y: 0, z: 0 }, // Will be calculated
             bounces: 0,
-            maxBounces: 3, // Fewer bounces for quick landing
-            bounceDecay: 0.7, // More energy loss per bounce
+            maxBounces: 8, // Realistic max bounce count for golf ball  
+            bounceDecay: 0.65, // Realistic bounce energy loss (35% energy lost per bounce)
             gravity: 20, // Higher gravity for faster descent
             spin: random(0, Math.PI * 2), // Initial random spin
-            spinRate: 0, // Spin rate will be based on velocity
-            lastGroundTime: 0, // Track when the ball last hit the ground
+            spinRate: 0, // Spin rate will be based on velocity            lastGroundTime: 0, // Track when the ball last hit the ground
             hitGreen: false, // Track if the ball has hit the green
             outOfBounds: false, // Track if ball has left the terrain
-            restTime: null // Track when ball comes to rest for disappearing
+            restTime: null, // Track when ball comes to rest for disappearing
+            isRolling: false, // Track if ball is in rolling mode (no more bouncing)
+            isDisappearing: false // Track if ball is in disappearing mode (falling through ground)
         };// Calculate initial velocity for realistic trajectory with randomness
         const flightTime = 2.0; // Time for initial flight
         const xDistance = finalX - startX;
@@ -303,7 +302,7 @@ class GolfCourse {    constructor(renderer) {
         
         // Add randomness to speed (±30% variation)
         const baseSpeed = 18;
-        const speedVariation = random(1.9, 3); // 70% to 130% of base speed
+        const speedVariation = random(2, 3); // 70% to 130% of base speed
         const speed = baseSpeed * speedVariation;
         
         // Add randomness to direction (±15 degree variation)
@@ -514,18 +513,26 @@ class GolfCourse {    constructor(renderer) {
         
         const now = Date.now();
         const elapsed = now - this.ballAnimation.startTime;
-        
-        // Use actual time since last frame for smooth animation
+          // Use actual time since last frame for smooth animation
         const deltaTime = Math.min(30, now - (this._lastUpdateTime || now)) / 1000;
         this._lastUpdateTime = now;
         
-        // Apply gravity to Z velocity (in world units per second squared)
-        this.ballAnimation.velocity.z -= this.ballAnimation.gravity * deltaTime;
-        
-        // Update position based on velocity (maintaining momentum)
+        // Apply gravity to Z velocity ONLY if not in rolling mode
+        if (!this.ballAnimation.isRolling) {
+            this.ballAnimation.velocity.z -= this.ballAnimation.gravity * deltaTime;
+        }
+          // Update position based on velocity (maintaining momentum)
         this.golfBall.x += this.ballAnimation.velocity.x * deltaTime;
         this.golfBall.y += this.ballAnimation.velocity.y * deltaTime;
-        this.golfBall.z += this.ballAnimation.velocity.z * deltaTime;
+        this.golfBall.z += this.ballAnimation.velocity.z * deltaTime;        // Keep ball at ground level when rolling (but not when disappearing)
+        if (this.ballAnimation.isRolling && !this.ballAnimation.isDisappearing) {
+            this.golfBall.z = 0;
+            
+            // Apply rolling friction continuously when in rolling mode
+            const rollingFriction = 0.92; // Stronger friction for realistic stopping
+            this.ballAnimation.velocity.x *= rollingFriction;
+            this.ballAnimation.velocity.y *= rollingFriction;
+        }
         
         // Calculate ball speed for spin effects
         const speed = Math.sqrt(
@@ -533,11 +540,44 @@ class GolfCourse {    constructor(renderer) {
             this.ballAnimation.velocity.y ** 2 +
             this.ballAnimation.velocity.z ** 2
         );
-        
-        // Update spin based on speed
+          // Update spin based on speed
         this.ballAnimation.spinRate = speed * 0.1;
-        this.ballAnimation.spin += this.ballAnimation.spinRate * deltaTime;        // Check for ground collision (bounce) - but only if ball is still on terrain
-        if (this.golfBall.z <= 0 && this.ballAnimation.velocity.z < 0) {
+        this.ballAnimation.spin += this.ballAnimation.spinRate * deltaTime;
+        
+        // Check for rolling ball stopping condition (continuous check)
+        if (this.ballAnimation.isRolling) {
+            const horizontalSpeed = Math.sqrt(
+                this.ballAnimation.velocity.x ** 2 + 
+                this.ballAnimation.velocity.y ** 2
+            );
+            
+            if (horizontalSpeed < 1) { // Lower threshold for stopping
+                // Ball has come to rest - start disappearing countdown
+                if (!this.ballAnimation.restTime) {
+                    this.ballAnimation.restTime = now;
+                    console.log('🛑 Ball came to rest - starting disappear countdown at position:', {
+                        x: this.golfBall.x.toFixed(2),
+                        y: this.golfBall.y.toFixed(2),
+                        z: this.golfBall.z.toFixed(2),
+                        speed: horizontalSpeed.toFixed(3)
+                    });
+                }
+                  // Check if ball has been at rest long enough to disappear
+                const restDuration = now - this.ballAnimation.restTime;
+                const disappearDelay = 2000; // Ball disappears after 2 seconds at rest
+                  if (restDuration >= disappearDelay) {
+                    // Start fade-out animation - ball just becomes invisible at rest position
+                    this.ballAnimation.isDisappearing = true; // Mark as disappearing
+                    this.ballAnimation.active = false; // Stop the animation immediately
+                    console.log('👻 Ball fading away - animation complete at rest position');
+                    console.log(`   Final ball position: (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)}, ${this.golfBall.z.toFixed(1)})`);
+                    return; // Exit update loop immediately
+                }
+            } else {
+                // Ball is moving again, reset rest timer
+                this.ballAnimation.restTime = null;
+            }        }// Check for ground collision (bounce) - but only if ball is still on terrain AND not disappearing
+        if (this.golfBall.z <= 0 && this.ballAnimation.velocity.z < 0 && !this.ballAnimation.isDisappearing) {
             // First check if we're still on the terrain
             const hole = this.currentHole;
             const onTerrain = (
@@ -592,71 +632,36 @@ class GolfCourse {    constructor(renderer) {
                 } else {
                     console.log(`💨 Ball landed OFF-COURSE at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
                     this.ballAnimation.hitGreen = false;
-                }
-                
-                // Bouncing logic - only bounce when ball is on terrain
+                }                // Bouncing logic - only bounce when ball is on terrain
                 if (Math.abs(this.ballAnimation.velocity.z) > 2 && this.ballAnimation.bounces < this.ballAnimation.maxBounces) {
-                    // Bounce with realistic physics
+                    // Realistic bounce with energy loss like a real golf ball
                     this.ballAnimation.velocity.z = -this.ballAnimation.velocity.z * this.ballAnimation.bounceDecay;
                     
-                    // Apply only slight friction to horizontal velocity
-                    this.ballAnimation.velocity.x *= 0.95;
-                    this.ballAnimation.velocity.y *= 0.95;
+                    // Apply realistic friction and energy loss to horizontal velocity each bounce
+                    // Real golf balls lose significant momentum with each bounce
+                    const bounceEnergyLoss = 0.75; // Lose 25% of horizontal energy per bounce
+                    this.ballAnimation.velocity.x *= bounceEnergyLoss;
+                    this.ballAnimation.velocity.y *= bounceEnergyLoss;
                     
                     this.ballAnimation.bounces++;
                     
-                    // Add randomness to the bounce based on speed
-                    const bounceRandomness = Math.min(5, speed * 0.03);
+                    // Add randomness to the bounce based on speed, but reduce with each bounce
+                    const bounceRandomness = Math.min(3, speed * 0.02) * (1 - this.ballAnimation.bounces * 0.2);
                     this.ballAnimation.velocity.x += random(-bounceRandomness, bounceRandomness);
                     this.ballAnimation.velocity.y += random(-bounceRandomness, bounceRandomness);
                     
-                    console.log(`Bounce ${this.ballAnimation.bounces}: velocity = (${this.ballAnimation.velocity.x.toFixed(2)}, ${this.ballAnimation.velocity.y.toFixed(2)}, ${this.ballAnimation.velocity.z.toFixed(2)})`);
-                } else {
-                    // Ball has stopped bouncing significantly
-                    if (speed < 15) {
-                        // Ball is rolling/coming to rest
-                        this.ballAnimation.velocity.z = 0;
-                        
-                        // Apply more friction for rolling
-                        this.ballAnimation.velocity.x *= 0.97;
-                        this.ballAnimation.velocity.y *= 0.97;
-                        
-                        // If velocity is very low, check if ball should disappear
-                        const horizontalSpeed = Math.sqrt(
-                            this.ballAnimation.velocity.x ** 2 + 
-                            this.ballAnimation.velocity.y ** 2
-                        );
-                        
-                        if (horizontalSpeed < 2) {
-                            // Ball has come to rest - start disappearing countdown
-                            if (!this.ballAnimation.restTime) {
-                                this.ballAnimation.restTime = now;
-                                console.log('🛑 Ball came to rest - starting disappear countdown at position:', {
-                                    x: this.golfBall.x.toFixed(2),
-                                    y: this.golfBall.y.toFixed(2),
-                                    z: this.golfBall.z.toFixed(2)
-                                });
-                            }
-                            
-                            // Check if ball has been at rest long enough to disappear
-                            const restDuration = now - this.ballAnimation.restTime;
-                            const disappearDelay = 2000; // Ball disappears after 2 seconds at rest
-                            
-                            if (restDuration >= disappearDelay) {
-                                // Start disappearing animation by making ball fall through ground
-                                this.ballAnimation.velocity.z = -10; // Make ball fall through ground
-                                this.ballAnimation.restTime = null; // Reset rest timer
-                                console.log('👻 Ball disappearing - falling through terrain after being at rest');
-                            }
-                        } else {
-                            // Ball is moving again, reset rest timer
-                            this.ballAnimation.restTime = null;
-                        }
-                    } else {
-                        // Still has significant horizontal speed but not bouncing much
-                        // Just give a small bounce for a rolling effect
-                        this.ballAnimation.velocity.z = Math.abs(this.ballAnimation.velocity.z) * 0.2;
-                    }
+                    // Calculate total velocity for logging
+                    const totalVelocity = Math.sqrt(
+                        this.ballAnimation.velocity.x ** 2 + 
+                        this.ballAnimation.velocity.y ** 2 + 
+                        this.ballAnimation.velocity.z ** 2
+                    );
+                    
+                    console.log(`⚽ Bounce ${this.ballAnimation.bounces}: velocity = (${this.ballAnimation.velocity.x.toFixed(2)}, ${this.ballAnimation.velocity.y.toFixed(2)}, ${this.ballAnimation.velocity.z.toFixed(2)}) | Total speed: ${totalVelocity.toFixed(2)}`);                } else {
+                    // Ball has stopped bouncing - transition to rolling mode
+                    console.log('🎱 Ball transition to rolling mode - eliminating all vertical movement and gravity');
+                    this.ballAnimation.velocity.z = 0; // Completely stop vertical movement
+                    this.ballAnimation.isRolling = true; // Disable gravity and bouncing
                 }
             }
         }
