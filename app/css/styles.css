@@ -27,7 +27,6 @@ body {
     border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     background: linear-gradient(to bottom, #f5f1e8, #e8dcc0);
-    cursor: crosshair;
 }
 
 /* Responsive design */
@@ -131,8 +130,8 @@ body {
     cursor: none;
 }
 
-/* Persistent fullscreen message (shows when not in fullscreen) */
-.fullscreen-message {
+/* Persistent fullscreen button (shows when not in fullscreen) */
+.fullscreen-button {
     position: fixed;
     bottom: 20px;
     left: 50%;
@@ -140,26 +139,27 @@ body {
     background: rgba(74, 124, 89, 0.9); /* Match the golf green theme */
     color: white;
     padding: 8px 16px;
+    border: none;
     border-radius: 20px;
     font-size: 13px;
     z-index: 999;
     opacity: 0.8;
     transition: opacity 0.3s ease;
-    pointer-events: none;
     cursor: pointer;
     font-weight: 500;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(4px);
 }
 
-.fullscreen-message:hover {
+.fullscreen-button:hover {
     opacity: 1;
+    background: rgba(74, 124, 89, 1);
 }
 
-/* Hide fullscreen message in fullscreen */
-:fullscreen .fullscreen-message,
-:-webkit-full-screen .fullscreen-message,
-:-moz-full-screen .fullscreen-message,
-:-ms-fullscreen .fullscreen-message {
+/* Hide fullscreen button in fullscreen */
+:fullscreen .fullscreen-button,
+:-webkit-full-screen .fullscreen-button,
+:-moz-full-screen .fullscreen-button,
+:-ms-fullscreen .fullscreen-button {
     display: none;
 }

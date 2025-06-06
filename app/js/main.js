@@ -55,15 +55,13 @@ class GolfScreensaver {
                     this.toggleFullscreen();
                     break;
             }
-        });
-
-        // Click anywhere to toggle fullscreen
-        document.addEventListener('click', (event) => {
-            // Only toggle if clicking on canvas or body (not on any UI elements)
-            if (event.target.tagName === 'CANVAS' || event.target.tagName === 'BODY') {
+        });        // Handle fullscreen button click
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        if (fullscreenButton) {
+            fullscreenButton.addEventListener('click', () => {
                 this.toggleFullscreen();
-            }
-        });
+            });
+        }
 
         // Handle fullscreen changes
         document.addEventListener('fullscreenchange', () => {
@@ -114,12 +112,11 @@ class GolfScreensaver {
             console.warn('⚠️ Error entering fullscreen:', err);
             // Try alternative fullscreen methods
             this.tryAlternativeFullscreen();
-            
-            // If fullscreen fails, ensure the persistent message is visible
+              // If fullscreen fails, ensure the persistent button is visible
             setTimeout(() => {
-                const fullscreenMessage = document.getElementById('fullscreenMessage');
-                if (fullscreenMessage && !document.fullscreenElement) {
-                    fullscreenMessage.style.display = 'block';
+                const fullscreenButton = document.getElementById('fullscreenButton');
+                if (fullscreenButton && !document.fullscreenElement) {
+                    fullscreenButton.style.display = 'block';
                 }
             }, 100);
         }
@@ -152,13 +149,13 @@ class GolfScreensaver {
     }    handleFullscreenChange() {
         this.isFullscreen = !!document.fullscreenElement;
         
-        // Handle persistent fullscreen message visibility
-        const fullscreenMessage = document.getElementById('fullscreenMessage');
-        if (fullscreenMessage) {
+        // Handle persistent fullscreen button visibility
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        if (fullscreenButton) {
             if (this.isFullscreen) {
-                fullscreenMessage.style.display = 'none';
+                fullscreenButton.style.display = 'none';
             } else {
-                fullscreenMessage.style.display = 'block';
+                fullscreenButton.style.display = 'block';
             }
         }
         
@@ -275,14 +272,14 @@ class GolfScreensaver {
         this.releaseWakeLock();
         this.clearFallbackSleepPrevention();
     }    setupFullscreenHint() {
-        // Setup persistent fullscreen message
-        const fullscreenMessage = document.getElementById('fullscreenMessage');
-        if (fullscreenMessage) {
-            // Show the message initially if not in fullscreen
+        // Setup persistent fullscreen button
+        const fullscreenButton = document.getElementById('fullscreenButton');
+        if (fullscreenButton) {
+            // Show the button initially if not in fullscreen
             if (!this.isFullscreen) {
-                fullscreenMessage.style.display = 'block';
+                fullscreenButton.style.display = 'block';
             } else {
-                fullscreenMessage.style.display = 'none';
+                fullscreenButton.style.display = 'none';
             }
         }
     }
