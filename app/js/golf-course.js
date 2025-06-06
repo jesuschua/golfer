@@ -9,7 +9,7 @@ class GolfCourse {    constructor(renderer) {
             startTime: null,
             duration: 15000, // 15 seconds max duration
             bounces: 0,
-            maxBounces: 5,
+            maxBounces: 10,
             bounceDecay: 0.85,
             gravity: 9.8,
             spin: 0,
@@ -19,12 +19,13 @@ class GolfCourse {    constructor(renderer) {
         };
         this._lastUpdateTime = null;
         this.generateNewHole();
-    }
-
-    generateNewHole() {
-        // Define the playable area - reduced size since we're zooming in more
-        const width = 80;
-        const height = 60;
+    }    generateNewHole() {
+        // Define the playable area - doubled in size for more expansive courses
+        const width = 160;
+        const height = 120;
+        
+        // Set terrain dimensions for centering in the renderer
+        this.renderer.setTerrainDimensions(width, height);
         
         // Generate hole characteristics
         const par = randomInt(3, 5);
@@ -248,65 +249,92 @@ class GolfCourse {    constructor(renderer) {
                 weightedTargets.push(target);
             }
         });
-        
-        // Pick a random target from weighted course features and terrain
+          // Pick a random target from weighted course features and terrain
         const targetFeature = weightedTargets[randomInt(0, weightedTargets.length - 1)];
         const finalX = targetFeature.x;
         const finalY = targetFeature.y;
-          // Calculate starting position - much closer and aimed directly at target
-        const green = this.currentHole.green;
-        const pin = green.pin;
         
-        // Start much closer and aim directly at the target (not the pin)
-        const targetDirection = Math.atan2(finalY - pin.y, finalX - pin.x);
-        const startDistance = random(40, 60); // Much closer starting distance
-        const startAngle = targetDirection + Math.PI + random(-0.2, 0.2); // Less variance, more direct
+        // Calculate starting position - ALWAYS from outside terrain, moving toward hole
+        const hole = this.currentHole;
+        const pin = hole.green.pin;
         
-        const startX = finalX + Math.cos(startAngle) * startDistance;
-        const startY = finalY + Math.sin(startAngle) * startDistance;console.log(`🎯 Ball targeted to ${targetFeature.type} at (${finalX.toFixed(1)}, ${finalY.toFixed(1)}) - Coming from direction toward hole at (${pin.x.toFixed(1)}, ${pin.y.toFixed(1)})`);
-        console.log(`📊 Target distribution: Green hits likely, fairway hits common, terrain grid squares common, other features possible`);this.ballAnimation = {
+        // Calculate direction from pin to target (this will be roughly the trajectory direction)
+        const pinToTargetAngle = Math.atan2(finalY - pin.y, finalX - pin.x);
+        
+        // Start from outside terrain, opposite to the pin-to-target direction
+        // This makes the ball come from "behind" the target, moving toward the pin area
+        const startAngle = pinToTargetAngle + Math.PI + random(-0.3, 0.3); // Some randomness
+        
+        // Calculate starting position outside terrain boundaries
+        const terrainCenterX = hole.width / 2;
+        const terrainCenterY = hole.height / 2;
+        const maxTerrainRadius = Math.sqrt(hole.width * hole.width + hole.height * hole.height) / 2;
+        const startDistance = maxTerrainRadius + random(20, 40); // Start well outside terrain
+        
+        const startX = terrainCenterX + Math.cos(startAngle) * startDistance;
+        const startY = terrainCenterY + Math.sin(startAngle) * startDistance;console.log(`🎯 Ball targeted to ${targetFeature.type} at (${finalX.toFixed(1)}, ${finalY.toFixed(1)}) - Coming from direction toward hole at (${pin.x.toFixed(1)}, ${pin.y.toFixed(1)})`);        console.log(`📊 Target distribution: Green hits likely, fairway hits common, terrain grid squares common, other features possible`);
+
+        // Calculate random starting height for variety
+        const startHeight = random(6, 12);
+
+        this.ballAnimation = {
             active: true,
             startTime: Date.now(),
             duration: 15000, // 15 seconds max (but physics can end it sooner)
-            startPos: { x: startX, y: startY, z: 8 }, // Start lower for steeper descent
+            startPos: { x: startX, y: startY, z: startHeight },
             endPos: { x: finalX, y: finalY, z: 0 }, // End on the ground
-            currentPos: { x: startX, y: startY, z: 8 },
+            currentPos: { x: startX, y: startY, z: startHeight },
             velocity: { x: 0, y: 0, z: 0 }, // Will be calculated
             bounces: 0,
             maxBounces: 3, // Fewer bounces for quick landing
             bounceDecay: 0.7, // More energy loss per bounce
-            gravity: 20, // Higher gravity for faster descent            spin: random(0, Math.PI * 2), // Initial random spin
+            gravity: 20, // Higher gravity for faster descent
+            spin: random(0, Math.PI * 2), // Initial random spin
             spinRate: 0, // Spin rate will be based on velocity
             lastGroundTime: 0, // Track when the ball last hit the ground
             hitGreen: false, // Track if the ball has hit the green
             outOfBounds: false, // Track if ball has left the terrain
             restTime: null // Track when ball comes to rest for disappearing
-        };// Calculate initial velocity for realistic trajectory
+        };// Calculate initial velocity for realistic trajectory with randomness
         const flightTime = 2.0; // Time for initial flight
         const xDistance = finalX - startX;
         const yDistance = finalY - startY;
         const distance = Math.sqrt(xDistance * xDistance + yDistance * yDistance);
-          // Much slower horizontal speed for steeper trajectory
-        const speed = 18; // Reduced speed for better control
-        const directionX = xDistance / distance;
-        const directionY = yDistance / distance;
+        
+        // Add randomness to speed (±30% variation)
+        const baseSpeed = 18;
+        const speedVariation = random(1.9, 3); // 70% to 130% of base speed
+        const speed = baseSpeed * speedVariation;
+        
+        // Add randomness to direction (±15 degree variation)
+        const baseAngle = Math.atan2(yDistance, xDistance);
+        const angleVariation = random(-Math.PI/12, Math.PI/12); // ±15 degrees
+        const finalAngle = baseAngle + angleVariation;
+        
+        const directionX = Math.cos(finalAngle);
+        const directionY = Math.sin(finalAngle);
         
         this.ballAnimation.velocity.x = directionX * speed;
-        this.ballAnimation.velocity.y = directionY * speed;        this.ballAnimation.velocity.z = 2; // Very small upward velocity for quick descent
+        this.ballAnimation.velocity.y = directionY * speed;
         
-        // Initialize the ball at starting position
+        // Add randomness to vertical velocity (different trajectory arcs)
+        const baseVerticalVelocity = 2;
+        const verticalVariation = random(0.5, 2.0); // 0.5 to 2.0 range
+        this.ballAnimation.velocity.z = baseVerticalVelocity * verticalVariation;        // Initialize the ball at starting position with random height variation
         this.golfBall = {
             x: startX,
             y: startY,
-            z: 8, // Start lower
+            z: startHeight,
             radius: 0.8
         };
-          console.log('Ball animation started - Initial velocity:', {
-            x: this.ballAnimation.velocity.x.toFixed(2),
-            y: this.ballAnimation.velocity.y.toFixed(2),
-            z: this.ballAnimation.velocity.z.toFixed(2)
-        });
-    }    getPlayableTargets() {
+        
+        console.log('Ball animation started with randomness:');
+        console.log(`  Speed variation: ${speedVariation.toFixed(2)}x (${speed.toFixed(1)} units/sec)`);
+        console.log(`  Direction variation: ${(angleVariation * 180/Math.PI).toFixed(1)} degrees`);
+        console.log(`  Vertical velocity: ${(baseVerticalVelocity * verticalVariation).toFixed(1)} units/sec`);
+        console.log(`  Starting height: ${startHeight.toFixed(1)} units`);
+        console.log(`  Final velocity: (${this.ballAnimation.velocity.x.toFixed(2)}, ${this.ballAnimation.velocity.y.toFixed(2)}, ${this.ballAnimation.velocity.z.toFixed(2)})`);
+    }getPlayableTargets() {
         // Collect all actual terrain grid squares AND course features that the ball can land on
         const targets = [];
         
@@ -524,117 +552,122 @@ class GolfCourse {    constructor(renderer) {
                 // Don't bounce, just keep falling with gravity
                 console.log(`🚫 Ball passed ground level outside terrain at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)}) - continuing to fall...`);
                 // Don't set z to 0, let it continue falling below ground level
-                return; // Skip bounce logic
-            }
-            
-            // Record the time of ground impact
-            this.ballAnimation.lastGroundTime = now;
-            
-            this.golfBall.z = 0; // Ensure ball doesn't go below ground when on terrain// Check what specific course feature the ball hit
-            const hitFeature = this.identifyHitFeature(this.golfBall.x, this.golfBall.y);
-              if (hitFeature.type !== 'off-course') {
-                if (hitFeature.type === 'green') {
-                    const distanceToPin = Math.sqrt(
-                        (this.golfBall.x - this.currentHole.green.pin.x) ** 2 + 
-                        (this.golfBall.y - this.currentHole.green.pin.y) ** 2
-                    );
-                    console.log(`🏌️ EXCELLENT! Ball landed on GREEN! Distance from pin: ${distanceToPin.toFixed(1)} units`);
-                    this.ballAnimation.hitGreen = true; // Special green effect
-                } else if (hitFeature.type === 'fairway') {
-                    console.log(`⛳ GOOD! Ball landed on FAIRWAY at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                    this.ballAnimation.hitGreen = false;
-                } else if (hitFeature.type === 'tee') {
-                    console.log(`🏌️ Ball landed on TEE area at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                    this.ballAnimation.hitGreen = false;
-                } else if (hitFeature.type === 'bunker') {
-                    console.log(`🏖️ Ball landed in BUNKER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                    this.ballAnimation.hitGreen = false;
-                } else if (hitFeature.type === 'water') {
-                    console.log(`💧 SPLASH! Ball landed in WATER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                    this.ballAnimation.hitGreen = false;
-                } else if (hitFeature.type === 'terrain-square') {
-                    console.log(`🌱 PERFECT! Ball landed on TERRAIN SQUARE [${hitFeature.gridX},${hitFeature.gridY}] at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                    this.ballAnimation.hitGreen = false;
-                } else {
-                    console.log(`🌿 Ball landed in ROUGH at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                    this.ballAnimation.hitGreen = false;
-                }
+                // IMPORTANT: Don't return here - continue with rest of animation logic
             } else {
-                console.log(`💨 Ball landed OFF-COURSE at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
-                this.ballAnimation.hitGreen = false;
-            }
-            
-            // Bouncing logic
-            if (Math.abs(this.ballAnimation.velocity.z) > 2 && this.ballAnimation.bounces < this.ballAnimation.maxBounces) {
-                // Bounce with realistic physics
-                this.ballAnimation.velocity.z = -this.ballAnimation.velocity.z * this.ballAnimation.bounceDecay;
+                // Record the time of ground impact
+                this.ballAnimation.lastGroundTime = now;
                 
-                // Apply only slight friction to horizontal velocity
-                this.ballAnimation.velocity.x *= 0.95;
-                this.ballAnimation.velocity.y *= 0.95;
+                this.golfBall.z = 0; // Ensure ball doesn't go below ground when on terrain
                 
-                this.ballAnimation.bounces++;
+                // Check what specific course feature the ball hit
+                const hitFeature = this.identifyHitFeature(this.golfBall.x, this.golfBall.y);
                 
-                // Add randomness to the bounce based on speed
-                const bounceRandomness = Math.min(5, speed * 0.03);
-                this.ballAnimation.velocity.x += random(-bounceRandomness, bounceRandomness);
-                this.ballAnimation.velocity.y += random(-bounceRandomness, bounceRandomness);
-                
-                console.log(`Bounce ${this.ballAnimation.bounces}: velocity = (${this.ballAnimation.velocity.x.toFixed(2)}, ${this.ballAnimation.velocity.y.toFixed(2)}, ${this.ballAnimation.velocity.z.toFixed(2)})`);
-            } else {
-                // Ball has stopped bouncing significantly
-                if (speed < 15) {
-                    // Ball is rolling/coming to rest
-                    this.ballAnimation.velocity.z = 0;
-                    
-                    // Apply more friction for rolling
-                    this.ballAnimation.velocity.x *= 0.97;
-                    this.ballAnimation.velocity.y *= 0.97;
-                      // If velocity is very low, check if ball should disappear
-                    const horizontalSpeed = Math.sqrt(
-                        this.ballAnimation.velocity.x ** 2 + 
-                        this.ballAnimation.velocity.y ** 2
-                    );
-                      if (horizontalSpeed < 2) {
-                        // Ball has come to rest - start disappearing countdown
-                        if (!this.ballAnimation.restTime) {
-                            this.ballAnimation.restTime = now;
-                            console.log('🛑 Ball came to rest - starting disappear countdown at position:', {
-                                x: this.golfBall.x.toFixed(2),
-                                y: this.golfBall.y.toFixed(2),
-                                z: this.golfBall.z.toFixed(2)
-                            });
-                        }
-                        
-                        // Check if ball has been at rest long enough to disappear
-                        const restDuration = now - this.ballAnimation.restTime;
-                        const disappearDelay = 2000; // Ball disappears after 2 seconds at rest
-                        
-                        if (restDuration >= disappearDelay) {
-                            // Start disappearing animation by making ball fall through ground
-                            this.ballAnimation.velocity.z = -10; // Make ball fall through ground
-                            this.ballAnimation.restTime = null; // Reset rest timer
-                            console.log('👻 Ball disappearing - falling through terrain after being at rest');
-                        }
+                if (hitFeature.type !== 'off-course') {
+                    if (hitFeature.type === 'green') {
+                        const distanceToPin = Math.sqrt(
+                            (this.golfBall.x - this.currentHole.green.pin.x) ** 2 + 
+                            (this.golfBall.y - this.currentHole.green.pin.y) ** 2
+                        );
+                        console.log(`🏌️ EXCELLENT! Ball landed on GREEN! Distance from pin: ${distanceToPin.toFixed(1)} units`);
+                        this.ballAnimation.hitGreen = true; // Special green effect
+                    } else if (hitFeature.type === 'fairway') {
+                        console.log(`⛳ GOOD! Ball landed on FAIRWAY at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.hitGreen = false;
+                    } else if (hitFeature.type === 'tee') {
+                        console.log(`🏌️ Ball landed on TEE area at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.hitGreen = false;
+                    } else if (hitFeature.type === 'bunker') {
+                        console.log(`🏖️ Ball landed in BUNKER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.hitGreen = false;
+                    } else if (hitFeature.type === 'water') {
+                        console.log(`💧 SPLASH! Ball landed in WATER at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.hitGreen = false;
+                    } else if (hitFeature.type === 'terrain-square') {
+                        console.log(`🌱 PERFECT! Ball landed on TERRAIN SQUARE [${hitFeature.gridX},${hitFeature.gridY}] at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.hitGreen = false;
                     } else {
-                        // Ball is moving again, reset rest timer
-                        this.ballAnimation.restTime = null;
+                        console.log(`🌿 Ball landed in ROUGH at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                        this.ballAnimation.hitGreen = false;
                     }
                 } else {
-                    // Still has significant horizontal speed but not bouncing much
-                    // Just give a small bounce for a rolling effect
-                    this.ballAnimation.velocity.z = Math.abs(this.ballAnimation.velocity.z) * 0.2;
+                    console.log(`💨 Ball landed OFF-COURSE at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                    this.ballAnimation.hitGreen = false;
                 }
-            }        }
-        
-        // Check if ball is outside the terrain boundaries - let it fall naturally
-        const hole = this.currentHole;
+                
+                // Bouncing logic - only bounce when ball is on terrain
+                if (Math.abs(this.ballAnimation.velocity.z) > 2 && this.ballAnimation.bounces < this.ballAnimation.maxBounces) {
+                    // Bounce with realistic physics
+                    this.ballAnimation.velocity.z = -this.ballAnimation.velocity.z * this.ballAnimation.bounceDecay;
+                    
+                    // Apply only slight friction to horizontal velocity
+                    this.ballAnimation.velocity.x *= 0.95;
+                    this.ballAnimation.velocity.y *= 0.95;
+                    
+                    this.ballAnimation.bounces++;
+                    
+                    // Add randomness to the bounce based on speed
+                    const bounceRandomness = Math.min(5, speed * 0.03);
+                    this.ballAnimation.velocity.x += random(-bounceRandomness, bounceRandomness);
+                    this.ballAnimation.velocity.y += random(-bounceRandomness, bounceRandomness);
+                    
+                    console.log(`Bounce ${this.ballAnimation.bounces}: velocity = (${this.ballAnimation.velocity.x.toFixed(2)}, ${this.ballAnimation.velocity.y.toFixed(2)}, ${this.ballAnimation.velocity.z.toFixed(2)})`);
+                } else {
+                    // Ball has stopped bouncing significantly
+                    if (speed < 15) {
+                        // Ball is rolling/coming to rest
+                        this.ballAnimation.velocity.z = 0;
+                        
+                        // Apply more friction for rolling
+                        this.ballAnimation.velocity.x *= 0.97;
+                        this.ballAnimation.velocity.y *= 0.97;
+                        
+                        // If velocity is very low, check if ball should disappear
+                        const horizontalSpeed = Math.sqrt(
+                            this.ballAnimation.velocity.x ** 2 + 
+                            this.ballAnimation.velocity.y ** 2
+                        );
+                        
+                        if (horizontalSpeed < 2) {
+                            // Ball has come to rest - start disappearing countdown
+                            if (!this.ballAnimation.restTime) {
+                                this.ballAnimation.restTime = now;
+                                console.log('🛑 Ball came to rest - starting disappear countdown at position:', {
+                                    x: this.golfBall.x.toFixed(2),
+                                    y: this.golfBall.y.toFixed(2),
+                                    z: this.golfBall.z.toFixed(2)
+                                });
+                            }
+                            
+                            // Check if ball has been at rest long enough to disappear
+                            const restDuration = now - this.ballAnimation.restTime;
+                            const disappearDelay = 2000; // Ball disappears after 2 seconds at rest
+                            
+                            if (restDuration >= disappearDelay) {
+                                // Start disappearing animation by making ball fall through ground
+                                this.ballAnimation.velocity.z = -10; // Make ball fall through ground
+                                this.ballAnimation.restTime = null; // Reset rest timer
+                                console.log('👻 Ball disappearing - falling through terrain after being at rest');
+                            }
+                        } else {
+                            // Ball is moving again, reset rest timer
+                            this.ballAnimation.restTime = null;
+                        }
+                    } else {
+                        // Still has significant horizontal speed but not bouncing much
+                        // Just give a small bounce for a rolling effect
+                        this.ballAnimation.velocity.z = Math.abs(this.ballAnimation.velocity.z) * 0.2;
+                    }
+                }
+            }
+        }
+          // Check if ball is outside the terrain boundaries - let it fall naturally
+        const terrain = this.currentHole;
         const isOutOfBounds = (
             this.golfBall.x < 0 || 
-            this.golfBall.x > hole.width || 
+            this.golfBall.x > terrain.width || 
             this.golfBall.y < 0 || 
-            this.golfBall.y > hole.height
-        );        if (isOutOfBounds) {
+            this.golfBall.y > terrain.height
+        );if (isOutOfBounds) {
             // Ball has left the rendered terrain - but let it continue falling with gravity
             // Don't stop the animation, just log that it's out of bounds
             if (!this.ballAnimation.outOfBounds) {

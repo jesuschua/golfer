@@ -4,6 +4,8 @@ class CanvasRenderer {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
+        this.terrainOffsetX = 0;  // Will be set dynamically
+        this.terrainOffsetY = 0;  // Will be set dynamically
         this.setupCanvas();
         this.setupEventListeners();
     }
@@ -34,11 +36,19 @@ class CanvasRenderer {
         
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    }    // Set terrain dimensions for centering
+    setTerrainDimensions(width, height) {
+        this.terrainOffsetX = width / 2;
+        this.terrainOffsetY = height / 2;
     }
 
     // Transform isometric coordinates to screen coordinates
     transformPoint(x, y, z = 0) {
-        const iso = isoToScreen(x, y, z);
+        // Offset coordinates to center the terrain on screen
+        const offsetX = x - this.terrainOffsetX;
+        const offsetY = y - this.terrainOffsetY;
+        
+        const iso = isoToScreen(offsetX, offsetY, z);
         return {
             x: this.centerX + iso.x * this.scale,
             y: this.centerY + iso.y * this.scale
