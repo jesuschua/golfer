@@ -28,19 +28,19 @@ class GolfScreensaver {
         
         // Setup event listeners
         this.setupEventListeners();
-        
-        // Start the render loop
+          // Start the render loop
         this.startRenderLoop();
         
         // Initial render
         this.render();
-          // Auto-enter fullscreen for screensaver experience
+        
+        // Setup fullscreen hint and persistent message
+        this.setupFullscreenHint();
+        
+        // Auto-enter fullscreen for screensaver experience
         if (this.autoFullscreenEnabled) {
             setTimeout(() => this.enterFullscreen(), 1000); // Delay to ensure page is ready
         }
-        
-        // Setup fullscreen hint
-        this.setupFullscreenHint();
         
         console.log('Golf Screensaver initialized successfully!');
     }    setupEventListeners() {
@@ -106,9 +106,7 @@ class GolfScreensaver {
         } else {
             this.exitFullscreen();
         }
-    }
-
-    async enterFullscreen() {
+    }    async enterFullscreen() {
         try {
             await document.documentElement.requestFullscreen();
             console.log('✅ Entered fullscreen mode');
@@ -116,6 +114,14 @@ class GolfScreensaver {
             console.warn('⚠️ Error entering fullscreen:', err);
             // Try alternative fullscreen methods
             this.tryAlternativeFullscreen();
+            
+            // If fullscreen fails, ensure the persistent message is visible
+            setTimeout(() => {
+                const fullscreenMessage = document.getElementById('fullscreenMessage');
+                if (fullscreenMessage && !document.fullscreenElement) {
+                    fullscreenMessage.style.display = 'block';
+                }
+            }, 100);
         }
     }
 
@@ -143,10 +149,18 @@ class GolfScreensaver {
         else if (document.documentElement.msRequestFullscreen) {
             document.documentElement.msRequestFullscreen();
         }
-    }
-
-    handleFullscreenChange() {
+    }    handleFullscreenChange() {
         this.isFullscreen = !!document.fullscreenElement;
+        
+        // Handle persistent fullscreen message visibility
+        const fullscreenMessage = document.getElementById('fullscreenMessage');
+        if (fullscreenMessage) {
+            if (this.isFullscreen) {
+                fullscreenMessage.style.display = 'none';
+            } else {
+                fullscreenMessage.style.display = 'block';
+            }
+        }
         
         if (this.isFullscreen) {
             console.log('🖥️ Fullscreen activated - requesting wake lock');
@@ -260,9 +274,7 @@ class GolfScreensaver {
         this.stopRenderLoop();
         this.releaseWakeLock();
         this.clearFallbackSleepPrevention();
-    }
-
-    setupFullscreenHint() {
+    }    setupFullscreenHint() {
         const hint = document.getElementById('fullscreenHint');
         if (hint) {
             // Show hint for 5 seconds, then fade out
@@ -275,6 +287,17 @@ class GolfScreensaver {
                     }
                 }, 500);
             }, 5000);
+        }
+        
+        // Setup persistent fullscreen message
+        const fullscreenMessage = document.getElementById('fullscreenMessage');
+        if (fullscreenMessage) {
+            // Show the message initially if not in fullscreen
+            if (!this.isFullscreen) {
+                fullscreenMessage.style.display = 'block';
+            } else {
+                fullscreenMessage.style.display = 'none';
+            }
         }
     }
 }

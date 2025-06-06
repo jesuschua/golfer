@@ -16,7 +16,16 @@ class GolfCourse {    constructor(renderer) {
             spinRate: 0,
             lastGroundTime: 0,
             restTime: null // Track when ball comes to rest for disappearing
+        };        // Terrain tile animation system
+        this.terrainAnimation = {
+            active: false,
+            startTime: null,
+            totalDuration: 2000, // Total time for all tiles to finish flipping (2 seconds)
+            individualFlipDuration: 600, // Each individual tile flip takes 600ms
+            tiles: new Map(), // Store animation state for each tile
+            gridSize: 8 // Must match renderTerrain gridSize
         };
+        
         this._lastUpdateTime = null;
         this.generateNewHole();
     }    generateNewHole() {
@@ -48,12 +57,13 @@ class GolfCourse {    constructor(renderer) {
         // Generate tee first, then green based on tee position
         this.currentHole.tee = this.generateTeeArea(width, height);
         this.currentHole.green = this.generateGreen(width, height);
-        this.generateFairway();
-        this.generateHazards();
+        this.generateFairway();        this.generateHazards();
         this.generateTrees();        this.generateTerrain();
         
-        // Start golf ball animation
-        this.startBallAnimation();
+        // Start terrain tile flip animation
+        this.startTerrainAnimation();
+        
+        // Ball animation will start automatically when terrain animation completes
     }
 
     generateTeeArea(width, height) {
@@ -189,9 +199,7 @@ class GolfCourse {    constructor(renderer) {
                 type: 0 // Single tree type for consistency
             });
         }
-    }
-
-    generateTerrain() {
+    }    generateTerrain() {
         // Generate smoother, more gentle height variations
         this.heightMap = [];
         const resolution = 4; // Finer resolution for detailed terrain at higher zoom
@@ -203,7 +211,49 @@ class GolfCourse {    constructor(renderer) {
                 this.heightMap[x][y] = smoothNoise(x, y, 0.02) * 1.5;
             }
         }
-    }    startBallAnimation() {
+    }    startTerrainAnimation() {
+        console.log('🌍 Starting terrain tile flip animation with randomized timing...');
+        
+        this.terrainAnimation.active = true;
+        this.terrainAnimation.startTime = Date.now();
+        this.terrainAnimation.tiles.clear(); // Clear any previous tile data
+        
+        // Generate random start times for each tile within the 2-second window
+        const hole = this.currentHole;
+        const gridSize = this.terrainAnimation.gridSize;
+        
+        for (let x = 0; x < hole.width; x += gridSize) {
+            for (let y = 0; y < hole.height; y += gridSize) {
+                const tileKey = `${x}-${y}`;
+                
+                // Each tile starts at a random time within the first 1.4 seconds
+                // This leaves 0.6 seconds for the animation itself to complete within 2 seconds total
+                const randomStartDelay = Math.random() * (this.terrainAnimation.totalDuration - this.terrainAnimation.individualFlipDuration);
+                
+                this.terrainAnimation.tiles.set(tileKey, {
+                    startDelay: randomStartDelay,
+                    flipDuration: this.terrainAnimation.individualFlipDuration
+                });
+            }
+        }
+        
+        console.log(`🎬 ${this.terrainAnimation.tiles.size} terrain tiles will flip individually over ${this.terrainAnimation.totalDuration}ms`);
+        console.log(`   Each tile flips for ${this.terrainAnimation.individualFlipDuration}ms at random times`);
+    }    updateTerrainAnimation() {
+        if (!this.terrainAnimation.active) return;
+        
+        const now = Date.now();
+        const elapsed = now - this.terrainAnimation.startTime;
+        
+        // Check if the total animation duration is complete
+        if (elapsed >= this.terrainAnimation.totalDuration) {
+            this.terrainAnimation.active = false;
+            console.log('✅ Randomized terrain flip animation completed - starting ball animation');
+            
+            // Now start the ball animation
+            this.startBallAnimation();
+        }
+    }startBallAnimation() {
         // Check if a ball is actually still flying using physics-based logic
         let ballCurrentlyFlying = false;
         if (this.golfBall && this.ballAnimation && this.ballAnimation.velocity) {
@@ -732,6 +782,9 @@ class GolfCourse {    constructor(renderer) {
         
         if (!this.currentHole) return;
 
+        // Update terrain animation if active
+        this.updateTerrainAnimation();
+
         // Update ball animation if active
         this.updateBallAnimation();
 
@@ -745,12 +798,11 @@ class GolfCourse {    constructor(renderer) {
         this.renderTrees();
         this.renderPin();
         this.renderBall();
-    }
-
-    renderTerrain() {
-        // Render smooth, consistent terrain
+    }    renderTerrain() {
+        // Render smooth, consistent terrain with optional tile flip animation
         const hole = this.currentHole;
         const gridSize = 8; // Smaller grid for more detail at higher zoom
+        const now = Date.now();
         
         for (let x = 0; x < hole.width; x += gridSize) {
             for (let y = 0; y < hole.height; y += gridSize) {
@@ -761,11 +813,74 @@ class GolfCourse {    constructor(renderer) {
                     { x: x + gridSize, y: y, z: this.getElevation(x + gridSize, y) },
                     { x: x + gridSize, y: y + gridSize, z: this.getElevation(x + gridSize, y + gridSize) },
                     { x: x, y: y + gridSize, z: this.getElevation(x, y + gridSize) }
-                ];
-
-                // Use consistent base green color
-                const grassColor = getBaseGreen();
-                this.renderer.drawPolygon(points, grassColor, null, 0);
+                ];                // Use consistent base green color
+                let grassColor = getBaseGreen();
+                  // Check if this tile is animating with a flip effect
+                if (this.terrainAnimation.active) {
+                    const tileKey = `${x}-${y}`;
+                    const tileData = this.terrainAnimation.tiles.get(tileKey);
+                    
+                    if (tileData) {
+                        const globalElapsed = now - this.terrainAnimation.startTime;
+                        const tileElapsed = globalElapsed - tileData.startDelay;
+                        
+                        if (tileElapsed >= 0 && tileElapsed < tileData.flipDuration) {
+                            // Calculate flip animation progress for this specific tile (0 to 1)
+                            const progress = tileElapsed / tileData.flipDuration;
+                            
+                            // Create a true 3D flip effect around the tile's horizontal center axis
+                            // The tile rotates from -90° (face down) to +90° (face up)
+                            const flipAngle = (progress * Math.PI) - (Math.PI / 2); // -π/2 to +π/2
+                            const cosAngle = Math.cos(flipAngle);
+                            
+                            // Only render the tile when it's facing towards us
+                            if (cosAngle > 0) {
+                                this.renderer.ctx.save();
+                                
+                                // Calculate tile center for flip axis
+                                const centerX = x + gridSize / 2;
+                                const centerY = y + gridSize / 2;
+                                const centerScreen = this.renderer.transformPoint(centerX, centerY, elevation);
+                                
+                                // Apply 3D perspective transformation
+                                this.renderer.ctx.translate(centerScreen.x, centerScreen.y);
+                                this.renderer.ctx.scale(1, cosAngle); // Y-scale represents the perspective view
+                                this.renderer.ctx.translate(-centerScreen.x, -centerScreen.y);
+                                
+                                // Determine if we're showing the "back" or "front" of the tile
+                                let tileColor = grassColor;
+                                let alpha = 1.0;
+                                
+                                if (progress < 0.5) {
+                                    // First half: showing the "back" of the tile (darker earth color)
+                                    tileColor = adjustColor('#3a4a2a', 0); // Dark earth color for tile back
+                                    alpha = 0.7 + (progress * 0.6); // Fade in from 70% to 100%
+                                } else {
+                                    // Second half: showing the "front" of the tile (normal grass)
+                                    tileColor = grassColor;
+                                    alpha = 0.7 + ((progress - 0.5) * 0.6); // Fade in from 70% to 100%
+                                }
+                                
+                                this.renderer.ctx.globalAlpha = alpha;
+                                this.renderer.drawPolygon(points, tileColor, null, 0);
+                                this.renderer.ctx.restore();
+                            }
+                            // When cosAngle <= 0, the tile is edge-on or facing away, so don't render it
+                        } else if (tileElapsed < 0) {
+                            // Animation hasn't started yet for this tile - don't render (tile is face down)
+                            // This creates the effect that tiles start face-down and flip up at different times
+                        } else {
+                            // Animation complete for this tile - render normally with full grass color
+                            this.renderer.drawPolygon(points, grassColor, null, 0);
+                        }
+                    } else {
+                        // No tile data found - render normally (fallback)
+                        this.renderer.drawPolygon(points, grassColor, null, 0);
+                    }
+                } else {
+                    // No animation - render normally
+                    this.renderer.drawPolygon(points, grassColor, null, 0);
+                }
             }
         }
     }

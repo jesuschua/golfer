@@ -16,9 +16,10 @@ class CanvasRenderer {
                                document.msFullscreenElement);
         
         if (isFullscreen) {
-            // In fullscreen, use the entire screen
-            this.canvas.width = window.innerWidth;
-            this.canvas.height = window.innerHeight;
+            // In fullscreen, account for border space (16px margin + 2px border on each side)
+            const borderSpace = 20; // 8px margin + 2px border on each side
+            this.canvas.width = window.innerWidth - borderSpace;
+            this.canvas.height = window.innerHeight - borderSpace;
         } else {
             // In windowed mode, leave some margin
             const margin = 100;
@@ -34,7 +35,7 @@ class CanvasRenderer {
         this.scale = 6;
         
         console.log(`📐 Canvas resized to ${this.canvas.width}x${this.canvas.height} (fullscreen: ${isFullscreen})`);
-    }    setupEventListeners() {
+    }setupEventListeners() {
         // Handle window resize
         window.addEventListener('resize', () => {
             this.setupCanvas();

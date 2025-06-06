@@ -52,14 +52,14 @@ body {
     background: #000;
     width: 100vw;
     height: 100vh;
+    padding: 8px;
+    box-sizing: border-box;
 }
 
 :fullscreen #golfCanvas {
-    border: none;
+    border: 2px solid #c4b49a;
     border-radius: 0;
-    box-shadow: none;
-    width: 100vw !important;
-    height: 100vh !important;
+    box-shadow: inset 0 0 0 1px rgba(196, 180, 154, 0.3), 0 0 20px rgba(196, 180, 154, 0.4);
     cursor: none; /* Hide cursor in fullscreen */
 }
 
@@ -74,14 +74,14 @@ body {
 
 :-webkit-full-screen .screensaver-container {
     background: #000;
+    padding: 8px;
+    box-sizing: border-box;
 }
 
 :-webkit-full-screen #golfCanvas {
-    border: none;
+    border: 2px solid #c4b49a;
     border-radius: 0;
-    box-shadow: none;
-    width: 100vw !important;
-    height: 100vh !important;
+    box-shadow: inset 0 0 0 1px rgba(196, 180, 154, 0.3), 0 0 20px rgba(196, 180, 154, 0.4);
     cursor: none;
 }
 
@@ -99,11 +99,12 @@ body {
 }
 
 :-moz-full-screen #golfCanvas {
-    border: none;
+    border: 2px solid #c4b49a;
     border-radius: 0;
-    box-shadow: none;
-    width: 100vw !important;
-    height: 100vh !important;
+    box-shadow: inset 0 0 0 1px rgba(196, 180, 154, 0.3), 0 0 20px rgba(196, 180, 154, 0.4);
+    width: calc(100vw - 16px) !important;
+    height: calc(100vh - 16px) !important;
+    margin: 8px;
     cursor: none;
 }
 
@@ -121,11 +122,12 @@ body {
 }
 
 :-ms-fullscreen #golfCanvas {
-    border: none;
+    border: 2px solid #c4b49a;
     border-radius: 0;
-    box-shadow: none;
-    width: 100vw !important;
-    height: 100vh !important;
+    box-shadow: inset 0 0 0 1px rgba(196, 180, 154, 0.3), 0 0 20px rgba(196, 180, 154, 0.4);
+    width: calc(100vw - 16px) !important;
+    height: calc(100vh - 16px) !important;
+    margin: 8px;
     cursor: none;
 }
 
@@ -149,10 +151,39 @@ body {
     opacity: 0;
 }
 
-/* Hide hint in fullscreen */
+/* Persistent fullscreen message (shows when not in fullscreen) */
+.fullscreen-message {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(74, 124, 89, 0.9); /* Match the golf green theme */
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    cursor: pointer;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(4px);
+}
+
+.fullscreen-message:hover {
+    opacity: 1;
+}
+
+/* Hide both hints in fullscreen */
 :fullscreen .fullscreen-hint,
 :-webkit-full-screen .fullscreen-hint,
 :-moz-full-screen .fullscreen-hint,
-:-ms-fullscreen .fullscreen-hint {
+:-ms-fullscreen .fullscreen-hint,
+:fullscreen .fullscreen-message,
+:-webkit-full-screen .fullscreen-message,
+:-moz-full-screen .fullscreen-message,
+:-ms-fullscreen .fullscreen-message {
     display: none;
 }

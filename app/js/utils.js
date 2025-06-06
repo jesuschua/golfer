@@ -70,3 +70,20 @@ function cubicBezier(t, p0, p1, p2, p3) {
            3 * oneMinusT * t ** 2 * p2 + 
            t ** 3 * p3;
 }
+
+// Adjust color brightness for animation effects
+function adjustColor(hexColor, brightnessAdjustment) {
+    // Parse hex color
+    const hex = hexColor.replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    
+    // Adjust brightness
+    const newR = clamp(r + brightnessAdjustment, 0, 255);
+    const newG = clamp(g + brightnessAdjustment, 0, 255);
+    const newB = clamp(b + brightnessAdjustment, 0, 255);
+    
+    // Convert back to hex
+    return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+}
