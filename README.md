@@ -17,7 +17,7 @@ A beautiful browser-based screensaver that generates randomized golf course hole
   - Golf ball positioned near the hole as if from a previous shot
 
 - **Interactive Controls**:
-  - Click anywhere on the canvas to generate a new hole
+  - **Launch Ball**: Click "Launch Ball" button or press 'B' key to animate realistic golf ball physics
   - "Generate New Hole" button for easy regeneration
   - Keyboard shortcuts (Space/Enter for new hole, Escape for fullscreen)
   - Auto-regeneration every 2 minutes for contemplative screensaver functionality
@@ -39,7 +39,8 @@ A beautiful browser-based screensaver that generates randomized golf course hole
 - **Procedural Generation**: Algorithms for realistic golf course layouts
 - **Responsive Canvas**: Automatically adjusts to window size
 - **Consistent Color Palette**: Fixed muted earth tones prevent visual "shimmering"
-- **Simplified Golf Ball**: Stationary ball near hole with subtle dimple details
+- **Physics-Based Ball Animation**: Realistic golf ball trajectory with gravity, momentum, and terrain-only interaction
+- **Out of Bounds Detection**: Ball falls out of play when reaching the edge of the rendered terrain
 
 ## Course Generation Details
 
@@ -50,7 +51,9 @@ The application uses sophisticated algorithms to create realistic golf holes:
 - **Minimal Hazard Placement**: Sparse bunkers and rare water features maintain serene aesthetic
 - **Realistic Proportions**: All elements are scaled to approximate real golf course dimensions
 - **Warm Color Scheme**: Muted greens, sandy browns, and soft blues create a calming atmosphere
-- **Strategic Golf Ball Placement**: Ball appears near the pin as if from a successful approach shot
+- **Realistic Golf Ball Physics**: Animated golf ball bounces into the scene with proper trajectory, momentum, and gravity
+- **Terrain-Only Interaction**: Ball only interacts with the rendered terrain and falls out of bounds at the edges  
+- **Launch Ball Controls**: Interactive button and keyboard shortcut (B key) to launch new golf ball animations
 
 ## Visual Style
 

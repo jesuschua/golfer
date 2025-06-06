@@ -256,11 +256,11 @@ class GolfCourse {    constructor(renderer) {
             bounces: 0,
             maxBounces: 3, // Fewer bounces for quick landing
             bounceDecay: 0.7, // More energy loss per bounce
-            gravity: 20, // Higher gravity for faster descent
-            spin: random(0, Math.PI * 2), // Initial random spin
+            gravity: 20, // Higher gravity for faster descent            spin: random(0, Math.PI * 2), // Initial random spin
             spinRate: 0, // Spin rate will be based on velocity
             lastGroundTime: 0, // Track when the ball last hit the ground
-            hitGreen: false // Track if the ball has hit the green
+            hitGreen: false, // Track if the ball has hit the green
+            outOfBounds: false // Track if ball has left the terrain
         };// Calculate initial velocity for realistic trajectory
         const flightTime = 2.0; // Time for initial flight
         const xDistance = finalX - startX;
@@ -488,13 +488,29 @@ class GolfCourse {    constructor(renderer) {
         
         // Update spin based on speed
         this.ballAnimation.spinRate = speed * 0.1;
-        this.ballAnimation.spin += this.ballAnimation.spinRate * deltaTime;
-          // Check for ground collision (bounce)
+        this.ballAnimation.spin += this.ballAnimation.spinRate * deltaTime;        // Check for ground collision (bounce) - but only if ball is still on terrain
         if (this.golfBall.z <= 0 && this.ballAnimation.velocity.z < 0) {
+            // First check if we're still on the terrain
+            const hole = this.currentHole;
+            const onTerrain = (
+                this.golfBall.x >= 0 && 
+                this.golfBall.x <= hole.width && 
+                this.golfBall.y >= 0 && 
+                this.golfBall.y <= hole.height
+            );
+            
+            if (!onTerrain) {
+                // Ball hit ground level but is off the terrain - let it continue falling naturally
+                // Don't bounce, just keep falling with gravity
+                console.log(`🚫 Ball passed ground level outside terrain at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)}) - continuing to fall...`);
+                // Don't set z to 0, let it continue falling below ground level
+                return; // Skip bounce logic
+            }
+            
             // Record the time of ground impact
             this.ballAnimation.lastGroundTime = now;
             
-            this.golfBall.z = 0; // Ensure ball doesn't go below ground            // Check what specific course feature the ball hit
+            this.golfBall.z = 0; // Ensure ball doesn't go below ground when on terrain// Check what specific course feature the ball hit
             const hitFeature = this.identifyHitFeature(this.golfBall.x, this.golfBall.y);
               if (hitFeature.type !== 'off-course') {
                 if (hitFeature.type === 'green') {
@@ -573,27 +589,40 @@ class GolfCourse {    constructor(renderer) {
                     // Just give a small bounce for a rolling effect
                     this.ballAnimation.velocity.z = Math.abs(this.ballAnimation.velocity.z) * 0.2;
                 }
+            }        }
+        
+        // Check if ball is outside the terrain boundaries - let it fall naturally
+        const hole = this.currentHole;
+        const isOutOfBounds = (
+            this.golfBall.x < 0 || 
+            this.golfBall.x > hole.width || 
+            this.golfBall.y < 0 || 
+            this.golfBall.y > hole.height
+        );        if (isOutOfBounds) {
+            // Ball has left the rendered terrain - but let it continue falling with gravity
+            // Don't stop the animation, just log that it's out of bounds
+            if (!this.ballAnimation.outOfBounds) {
+                this.ballAnimation.outOfBounds = true;
+                console.log(`⚠️ BALL OUT OF BOUNDS! Left the terrain at (${this.golfBall.x.toFixed(1)}, ${this.golfBall.y.toFixed(1)})`);
+                console.log(`🌬️ Ball continues falling with gravity off the edge of the course...`);
             }
+        } else {
+            // Reset out of bounds flag if ball somehow comes back onto terrain
+            this.ballAnimation.outOfBounds = false;
+        }
+          // Stop the ball animation once it becomes invisible (same logic as renderBall)
+        if (this.golfBall.z < -2) { // Ball has fallen too far to be visible
+            this.ballAnimation.active = false;
+            console.log(`👻 Ball animation stopped - ball is no longer visible (z: ${this.golfBall.z.toFixed(2)})`);
+            console.log(`✅ Ball status should now change from 'Flying' to 'Ready'`);
+            return;
         }
         
-        // Stop animation if ball is way off screen and moving away
-        const offScreenDistance = 300; // Increase off-screen distance
-        const centerX = this.currentHole.width / 2;
-        const centerY = this.currentHole.height / 2;
-        const ballDistanceFromCenter = Math.sqrt(
-            (this.golfBall.x - centerX) ** 2 + 
-            (this.golfBall.y - centerY) ** 2
-        );
-        
-        if (ballDistanceFromCenter > offScreenDistance && elapsed > 3000) {
-            // Check if ball is moving away from center
-            const movingAway = 
-                (this.golfBall.x - centerX) * this.ballAnimation.velocity.x + 
-                (this.golfBall.y - centerY) * this.ballAnimation.velocity.y > 0;
-                  if (movingAway) {
-                this.ballAnimation.active = false;
-                console.log('Ball animation stopped - bounced off screen at distance:', ballDistanceFromCenter.toFixed(2));
-            }
+        // Additional safety check: If ball is very far from course and falling, stop eventually
+        if (isOutOfBounds && elapsed > 8000) { // 8 seconds max for out-of-bounds falling
+            this.ballAnimation.active = false;
+            console.log(`⏰ Ball animation timed out while falling out of bounds`);
+            return;
         }
         
         // Force stop after maximum duration to prevent runaway animations
@@ -800,6 +829,28 @@ class GolfCourse {    constructor(renderer) {
         if (!this.golfBall) return;
         
         const ball = this.golfBall;
+        const hole = this.currentHole;
+        
+        // Don't render ball if it's out of bounds and has fallen below visible area
+        const isOutOfBounds = (
+            ball.x < 0 || 
+            ball.x > hole.width || 
+            ball.y < 0 || 
+            ball.y > hole.height
+        );
+        
+        // Don't render if ball has fallen well below the terrain
+        if (ball.z < -5) {
+            return; // Ball has fallen into the void, don't render it
+        }
+        
+        // Don't render if ball is out of bounds and animation is marked as such
+        if (isOutOfBounds && this.ballAnimation && this.ballAnimation.outOfBounds) {
+            // Only render if ball is still close to ground level (visible falling)
+            if (ball.z < -2) {
+                return; // Ball has fallen too far to be visible
+            }
+        }
         
         // Draw shadow on the ground when ball is in the air
         if (ball.z > 0.1) {

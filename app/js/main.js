@@ -96,15 +96,20 @@ class GolfScreensaver {
         if (holeInfo && this.golfCourse) {
             holeInfo.textContent = this.golfCourse.getHoleInfo();
         }
-    }
-
-    updateBallStatus() {
+    }    updateBallStatus() {
         const ballStatus = document.getElementById('ballStatus');
         if (ballStatus && this.golfCourse) {
             const isAnimating = this.golfCourse.ballAnimation && this.golfCourse.ballAnimation.active;
-            ballStatus.textContent = `Ball: ${isAnimating ? 'Flying' : 'Ready'}`;
+            const statusText = `Ball: ${isAnimating ? 'Flying' : 'Ready'}`;
+            ballStatus.textContent = statusText;
+            
+            // Debug logging for ball status changes
+            if (this.lastBallStatus !== statusText) {
+                console.log(`🔄 Ball status changed: ${statusText} (animation active: ${isAnimating})`);
+                this.lastBallStatus = statusText;
+            }
         }
-    }    render() {
+    }render() {
         this.golfCourse.render();
         this.updateBallStatus(); // Update ball status every frame
     }startRenderLoop() {
