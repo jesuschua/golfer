@@ -25,6 +25,16 @@ class GolfCourse {    constructor(renderer) {
             tiles: new Map(), // Store animation state for each tile
             gridSize: 8 // Must match renderTerrain gridSize
         };
+
+        // Element slide-from-above animation system
+        this.elementAnimation = {
+            active: false,
+            startTime: null,
+            totalDuration: 1500, // Total time for all elements to slide down (1.5 seconds)
+            individualSlideDuration: 800, // Each element slide takes 800ms
+            elements: new Map(), // Store animation state for each element
+            slideDistance: 60 // How far above the screen elements start
+        };
         
         this._lastUpdateTime = null;
         this.generateNewHole();
@@ -248,11 +258,137 @@ class GolfCourse {    constructor(renderer) {
         // Check if the total animation duration is complete
         if (elapsed >= this.terrainAnimation.totalDuration) {
             this.terrainAnimation.active = false;
-            console.log('✅ Randomized terrain flip animation completed - starting ball animation');
+            console.log('✅ Randomized terrain flip animation completed - starting element slide animation');
+            
+            // Start the element slide animation when terrain animation completes
+            this.startElementAnimation();
+        }
+    }startElementAnimation() {
+        console.log('🌟 Starting element slide-from-above animation...');
+        
+        this.elementAnimation.active = true;
+        this.elementAnimation.startTime = Date.now();
+        this.elementAnimation.elements.clear(); // Clear any previous element data
+        
+        // Generate random start times for each element within the animation window
+        const hole = this.currentHole;
+        const elementTypes = [
+            { type: 'green', x: hole.green.x, y: hole.green.y },
+            { type: 'tee', x: hole.tee.x, y: hole.tee.y },
+            { type: 'pin', x: hole.green.pin.x, y: hole.green.pin.y }
+        ];
+        
+        // Add bunkers
+        hole.bunkers.forEach((bunker, index) => {
+            elementTypes.push({ type: `bunker-${index}`, x: bunker.x, y: bunker.y });
+        });
+        
+        // Add water hazards
+        hole.water.forEach((water, index) => {
+            elementTypes.push({ type: `water-${index}`, x: water.x, y: water.y });
+        });
+          // Add trees
+        hole.trees.forEach((tree, index) => {
+            elementTypes.push({ type: `tree-${index}`, x: tree.x, y: tree.y });
+        });
+        
+        // Add fairway segments (mosaic pattern) - these will slide from opposite direction
+        hole.fairway.forEach((segment, index) => {
+            elementTypes.push({ type: `fairway-${index}`, x: segment.x, y: segment.y });
+        });
+        
+        // Assign random start delays to each element
+        elementTypes.forEach(element => {
+            const elementKey = `${element.type}`;
+            
+            // Each element starts at a random time within the first part of the animation
+            const randomStartDelay = Math.random() * (this.elementAnimation.totalDuration - this.elementAnimation.individualSlideDuration);
+            
+            this.elementAnimation.elements.set(elementKey, {
+                startDelay: randomStartDelay,
+                slideDuration: this.elementAnimation.individualSlideDuration,
+                x: element.x,
+                y: element.y
+            });
+        });
+        
+        console.log(`🎬 ${this.elementAnimation.elements.size} golf course elements will slide down individually over ${this.elementAnimation.totalDuration}ms`);
+        console.log(`   Each element slides for ${this.elementAnimation.individualSlideDuration}ms at random times`);
+    }    updateElementAnimation() {
+        if (!this.elementAnimation.active) return;
+        
+        const now = Date.now();
+        const elapsed = now - this.elementAnimation.startTime;
+        
+        // Check if the total animation duration is complete
+        if (elapsed >= this.elementAnimation.totalDuration) {
+            this.elementAnimation.active = false;
+            console.log('✅ Element slide animation completed - starting ball animation');
             
             // Now start the ball animation
             this.startBallAnimation();
         }
+    }    // Helper method to calculate slide animation offset for an element
+    getElementSlideOffset(elementKey) {
+        if (!this.elementAnimation.active) return 0;
+        
+        const elementData = this.elementAnimation.elements.get(elementKey);
+        if (!elementData) return 0;
+        
+        const now = Date.now();
+        const globalElapsed = now - this.elementAnimation.startTime;
+        const elementElapsed = globalElapsed - elementData.startDelay;
+        
+        // Check if this is a fairway segment (mosaic pattern) - slide from opposite direction
+        const isFairwaySegment = elementKey.startsWith('fairway-');
+        
+        // If element animation hasn't started yet
+        if (elementElapsed <= 0) {
+            if (isFairwaySegment) {
+                // Fairway segments start below screen (positive offset)
+                return this.elementAnimation.slideDistance;
+            } else {
+                // Other elements start above screen (negative offset)
+                return -this.elementAnimation.slideDistance;
+            }
+        }
+        
+        // If element animation is in progress
+        if (elementElapsed < elementData.slideDuration) {
+            const progress = elementElapsed / elementData.slideDuration;
+            // Ease-out animation for smooth landing
+            const easeOutProgress = 1 - Math.pow(1 - progress, 3);
+            
+            if (isFairwaySegment) {
+                // Fairway segments slide up from below (positive to zero)
+                const offset = this.elementAnimation.slideDistance * (1 - easeOutProgress);
+                return offset;
+            } else {
+                // Other elements slide down from above (negative to zero)
+                const offset = -this.elementAnimation.slideDistance * (1 - easeOutProgress);
+                return offset;
+            }
+        }
+        
+        // Element animation is complete, element is at final position
+        return 0;
+    }// Helper method to check if an element should be visible (for slide-from-above animation)
+    shouldRenderElement(elementKey) {
+        // If terrain animation is active, elements should be hidden
+        if (this.terrainAnimation.active) return false;
+        
+        // If element animation is not active, show elements normally (post-animation)
+        if (!this.elementAnimation.active) return true;
+        
+        const elementData = this.elementAnimation.elements.get(elementKey);
+        if (!elementData) return true; // Render if no animation data found
+        
+        const now = Date.now();
+        const globalElapsed = now - this.elementAnimation.startTime;
+        const elementElapsed = globalElapsed - elementData.startDelay;
+        
+        // Only render if the element's animation has started
+        return elementElapsed >= 0;
     }startBallAnimation() {
         // Check if a ball is actually still flying using physics-based logic
         let ballCurrentlyFlying = false;
@@ -785,6 +921,9 @@ class GolfCourse {    constructor(renderer) {
         // Update terrain animation if active
         this.updateTerrainAnimation();
 
+        // Update element animation if active
+        this.updateElementAnimation();
+
         // Update ball animation if active
         this.updateBallAnimation();
 
@@ -798,7 +937,7 @@ class GolfCourse {    constructor(renderer) {
         this.renderTrees();
         this.renderPin();
         this.renderBall();
-    }    renderTerrain() {
+    }renderTerrain() {
         // Render smooth, consistent terrain with optional tile flip animation
         const hole = this.currentHole;
         const gridSize = 8; // Smaller grid for more detail at higher zoom
@@ -883,14 +1022,18 @@ class GolfCourse {    constructor(renderer) {
                 }
             }
         }
-    }
-
-    renderFairway() {
+    }    renderFairway() {
         const fairway = this.currentHole.fairway;
         
         for (let i = 0; i < fairway.length - 1; i++) {
             const current = fairway[i];
             const next = fairway[i + 1];
+            
+            // Check visibility first - don't render if element should not be visible yet
+            if (!this.shouldRenderElement(`fairway-${i}`)) continue;
+            
+            // Apply slide-from-below animation if active (opposite direction from circles)
+            const slideOffset = this.getElementSlideOffset(`fairway-${i}`);
             
             // Create fairway segment
             const angle = Math.atan2(next.y - current.y, next.x - current.x);
@@ -900,79 +1043,103 @@ class GolfCourse {    constructor(renderer) {
                 { 
                     x: current.x + Math.cos(perpAngle) * current.width / 2, 
                     y: current.y + Math.sin(perpAngle) * current.width / 2,
-                    z: current.elevation
+                    z: current.elevation + slideOffset // Apply slide offset to Z coordinate
                 },
                 { 
                     x: current.x - Math.cos(perpAngle) * current.width / 2, 
                     y: current.y - Math.sin(perpAngle) * current.width / 2,
-                    z: current.elevation
+                    z: current.elevation + slideOffset // Apply slide offset to Z coordinate
                 },
                 { 
                     x: next.x - Math.cos(perpAngle) * next.width / 2, 
                     y: next.y - Math.sin(perpAngle) * next.width / 2,
-                    z: next.elevation
+                    z: next.elevation + slideOffset // Apply slide offset to Z coordinate
                 },
                 { 
                     x: next.x + Math.cos(perpAngle) * next.width / 2, 
                     y: next.y + Math.sin(perpAngle) * next.width / 2,
-                    z: next.elevation
+                    z: next.elevation + slideOffset // Apply slide offset to Z coordinate
                 }
             ];
 
             this.renderer.drawPolygon(points, getFairwayGreen(), null, 0);
         }
-    }    renderGreen() {
+    }renderGreen() {
         const green = this.currentHole.green;
+        
+        // Check visibility first - don't render if element should not be visible yet
+        if (!this.shouldRenderElement('green')) return;
+        
+        // Apply slide-from-above animation if active
+        const slideOffset = this.getElementSlideOffset('green');
+        
         this.renderer.drawCircle(
             green.x, 
             green.y, 
             green.radius, 
             getGreenColor(),
             null, 
-            0
+            slideOffset // Apply slide offset to Z coordinate for vertical movement
         );
-    }
-
-    renderTee() {
+    }    renderTee() {
         const tee = this.currentHole.tee;
+        
+        // Check visibility first - don't render if element should not be visible yet
+        if (!this.shouldRenderElement('tee')) return;
+        
+        // Apply slide-from-above animation if active
+        const slideOffset = this.getElementSlideOffset('tee');
+        
         this.renderer.drawCircle(
             tee.x, 
             tee.y, 
             tee.radius, 
             '#a0a080',
             null, 
-            0
+            slideOffset // Apply slide offset to Z coordinate for vertical movement
         );
-    }
-
-    renderBunkers() {
-        this.currentHole.bunkers.forEach(bunker => {
+    }    renderBunkers() {
+        this.currentHole.bunkers.forEach((bunker, index) => {
+            // Check visibility first - don't render if element should not be visible yet
+            if (!this.shouldRenderElement(`bunker-${index}`)) return;
+            
+            // Apply slide-from-above animation if active
+            const slideOffset = this.getElementSlideOffset(`bunker-${index}`);
+            
             this.renderer.drawCircle(
                 bunker.x, 
                 bunker.y, 
                 bunker.radius, 
                 getSandColor(),
                 null, 
-                0
+                slideOffset // Apply slide offset to Z coordinate for vertical movement
             );
         });
-    }
-
-    renderWater() {
-        this.currentHole.water.forEach(water => {
+    }    renderWater() {
+        this.currentHole.water.forEach((water, index) => {
+            // Check visibility first - don't render if element should not be visible yet
+            if (!this.shouldRenderElement(`water-${index}`)) return;
+            
+            // Apply slide-from-above animation if active
+            const slideOffset = this.getElementSlideOffset(`water-${index}`);
+            
             this.renderer.drawCircle(
                 water.x, 
                 water.y, 
                 water.radius, 
                 getWaterColor(),
                 null, 
-                0
+                slideOffset // Apply slide offset to Z coordinate for vertical movement
             );
         });
-    }
-
-    renderTrees() {
-        this.currentHole.trees.forEach(tree => {
+    }    renderTrees() {
+        this.currentHole.trees.forEach((tree, index) => {
+            // Check visibility first - don't render if element should not be visible yet
+            if (!this.shouldRenderElement(`tree-${index}`)) return;
+            
+            // Apply slide-from-above animation if active
+            const slideOffset = this.getElementSlideOffset(`tree-${index}`);
+            
             // Draw tree trunk
             this.renderer.drawCircle(
                 tree.x, 
@@ -980,7 +1147,7 @@ class GolfCourse {    constructor(renderer) {
                 1, 
                 '#8b7355',
                 null,
-                0
+                slideOffset // Apply slide offset to Z coordinate for vertical movement
             );
             
             // Draw tree canopy
@@ -990,16 +1157,22 @@ class GolfCourse {    constructor(renderer) {
                 tree.radius, 
                 getTreeColor(),
                 null, 
-                0
+                slideOffset // Apply slide offset to Z coordinate for vertical movement
             );
         });
     }    renderPin() {
         const pin = this.currentHole.green.pin;
         const pinHeight = 8;
         
-        // Pin pole
-        const poleStart = this.renderer.transformPoint(pin.x, pin.y, 0);
-        const poleEnd = this.renderer.transformPoint(pin.x, pin.y, pinHeight);
+        // Check visibility first - don't render if element should not be visible yet
+        if (!this.shouldRenderElement('pin')) return;
+        
+        // Apply slide-from-above animation if active
+        const slideOffset = this.getElementSlideOffset('pin');
+        
+        // Pin pole - apply slide offset to Z coordinates for vertical movement
+        const poleStart = this.renderer.transformPoint(pin.x, pin.y, slideOffset);
+        const poleEnd = this.renderer.transformPoint(pin.x, pin.y, pinHeight + slideOffset);
         
         this.renderer.ctx.save();
         this.renderer.ctx.strokeStyle = '#d4b896';
