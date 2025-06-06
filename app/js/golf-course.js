@@ -878,9 +878,7 @@ class GolfCourse {    constructor(renderer) {
                 0
             );
         });
-    }
-
-    renderPin() {
+    }    renderPin() {
         const pin = this.currentHole.green.pin;
         const pinHeight = 8;
         
@@ -896,11 +894,25 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.lineTo(poleEnd.x, poleEnd.y);
         this.renderer.ctx.stroke();
         
-        // Flag
+        // Animated flag with gentle flutter
+        const currentTime = Date.now();
+        const flutter1 = Math.sin(currentTime * 0.003) * 1.5; // Primary flutter wave
+        const flutter2 = Math.sin(currentTime * 0.005 + 1) * 0.8; // Secondary wave for complexity
+        const totalFlutter = flutter1 + flutter2;
+        
         this.renderer.ctx.fillStyle = '#FF7F00'; // Bright orange flag
-        this.renderer.ctx.fillRect(poleEnd.x, poleEnd.y - 2, 8, 4);
+        
+        // Create a path for the waving flag instead of a simple rectangle
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(poleEnd.x, poleEnd.y - 2);
+        this.renderer.ctx.lineTo(poleEnd.x + 8 + totalFlutter * 0.3, poleEnd.y - 2 + totalFlutter * 0.2);
+        this.renderer.ctx.lineTo(poleEnd.x + 8 + totalFlutter * 0.5, poleEnd.y + 2 + totalFlutter * 0.3);
+        this.renderer.ctx.lineTo(poleEnd.x, poleEnd.y + 2);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        
         this.renderer.ctx.restore();
-    }    renderBall() {
+    }renderBall() {
         if (!this.golfBall) return;
         
         const ball = this.golfBall;
