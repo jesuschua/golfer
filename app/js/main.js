@@ -99,15 +99,41 @@ class GolfScreensaver {
     }    updateBallStatus() {
         const ballStatus = document.getElementById('ballStatus');
         if (ballStatus && this.golfCourse) {
-            const isAnimating = this.golfCourse.ballAnimation && this.golfCourse.ballAnimation.active;
-            const statusText = `Ball: ${isAnimating ? 'Flying' : 'Ready'}`;
-            ballStatus.textContent = statusText;
+            let isFlying = false;
             
-            // Debug logging for ball status changes
-            if (this.lastBallStatus !== statusText) {
-                console.log(`🔄 Ball status changed: ${statusText} (animation active: ${isAnimating})`);
-                this.lastBallStatus = statusText;
+            // Check if ball exists and is in a "flying" state based on actual physics
+            if (this.golfCourse.golfBall && this.golfCourse.ballAnimation) {
+                const ball = this.golfCourse.golfBall;
+                const animation = this.golfCourse.ballAnimation;
+                
+                // Ball is "Flying" if:
+                // 1. Ball is visible (z >= -2, same threshold as renderBall)
+                // 2. Ball has significant motion (horizontal or vertical velocity)
+                // 3. Ball is in the air (z > 0.1) OR has significant velocity
+                
+                const ballVisible = ball.z >= -2;
+                const hasVelocity = animation.velocity && (
+                    Math.abs(animation.velocity.x) > 1 || 
+                    Math.abs(animation.velocity.y) > 1 || 
+                    Math.abs(animation.velocity.z) > 1
+                );
+                const inAir = ball.z > 0.1;
+                
+                // Ball is flying if it's visible AND (in air OR moving significantly)
+                isFlying = ballVisible && (inAir || hasVelocity);
+                
+                // Debug logging when status changes
+                if (this.lastBallStatus !== `Ball: ${isFlying ? 'Flying' : 'Ready'}`) {
+                    console.log(`🔄 Ball status: ${isFlying ? 'Flying' : 'Ready'}`);
+                    console.log(`   Visible: ${ballVisible} (z: ${ball.z.toFixed(2)})`);
+                    console.log(`   Has velocity: ${hasVelocity} (${animation.velocity ? `${animation.velocity.x.toFixed(1)}, ${animation.velocity.y.toFixed(1)}, ${animation.velocity.z.toFixed(1)}` : 'no velocity'})`);
+                    console.log(`   In air: ${inAir}`);
+                }
             }
+            
+            const statusText = `Ball: ${isFlying ? 'Flying' : 'Ready'}`;
+            ballStatus.textContent = statusText;
+            this.lastBallStatus = statusText;
         }
     }render() {
         this.golfCourse.render();

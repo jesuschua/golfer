@@ -4,8 +4,7 @@ class GolfCourse {    constructor(renderer) {
         this.renderer = renderer;
         this.holes = [];
         this.currentHole = null;
-        this.golfBall = null;
-        this.ballAnimation = {
+        this.golfBall = null;        this.ballAnimation = {
             active: false,
             startTime: null,
             duration: 15000, // 15 seconds max duration
@@ -15,7 +14,8 @@ class GolfCourse {    constructor(renderer) {
             gravity: 9.8,
             spin: 0,
             spinRate: 0,
-            lastGroundTime: 0
+            lastGroundTime: 0,
+            restTime: null // Track when ball comes to rest for disappearing
         };
         this._lastUpdateTime = null;
         this.generateNewHole();
@@ -203,11 +203,30 @@ class GolfCourse {    constructor(renderer) {
             }
         }
     }    startBallAnimation() {
-        // Don't start a new animation if one is already running
-        if (this.ballAnimation && this.ballAnimation.active) {
-            console.log('Ball animation already running, skipping new animation');
+        // Check if a ball is actually still flying using physics-based logic
+        let ballCurrentlyFlying = false;
+        if (this.golfBall && this.ballAnimation && this.ballAnimation.velocity) {
+            const ball = this.golfBall;
+            const animation = this.ballAnimation;
+            
+            const ballVisible = ball.z >= -2;
+            const hasVelocity = (
+                Math.abs(animation.velocity.x) > 1 || 
+                Math.abs(animation.velocity.y) > 1 || 
+                Math.abs(animation.velocity.z) > 1
+            );
+            const inAir = ball.z > 0.1;
+            
+            ballCurrentlyFlying = ballVisible && (inAir || hasVelocity);
+        }
+        
+        // Don't start a new animation if a ball is actually still flying
+        if (ballCurrentlyFlying) {
+            console.log('🚫 Ball is still flying (physics-based check), skipping new animation');
             return;
-        }        // Collect all actual playable targets from course features AND terrain grid
+        } else if (this.ballAnimation && this.ballAnimation.active) {
+            console.log('🔄 Overriding stuck animation.active flag - ball is not actually flying');
+        }// Collect all actual playable targets from course features AND terrain grid
         const playableTargets = this.getPlayableTargets();
         
         // Add weighting to make some features more likely targets
@@ -260,7 +279,8 @@ class GolfCourse {    constructor(renderer) {
             spinRate: 0, // Spin rate will be based on velocity
             lastGroundTime: 0, // Track when the ball last hit the ground
             hitGreen: false, // Track if the ball has hit the green
-            outOfBounds: false // Track if ball has left the terrain
+            outOfBounds: false, // Track if ball has left the terrain
+            restTime: null // Track when ball comes to rest for disappearing
         };// Calculate initial velocity for realistic trajectory
         const flightTime = 2.0; // Time for initial flight
         const xDistance = finalX - startX;
@@ -570,19 +590,35 @@ class GolfCourse {    constructor(renderer) {
                     // Apply more friction for rolling
                     this.ballAnimation.velocity.x *= 0.97;
                     this.ballAnimation.velocity.y *= 0.97;
-                    
-                    // If velocity is very low, stop the ball
+                      // If velocity is very low, check if ball should disappear
                     const horizontalSpeed = Math.sqrt(
                         this.ballAnimation.velocity.x ** 2 + 
                         this.ballAnimation.velocity.y ** 2
                     );
                       if (horizontalSpeed < 2) {
-                        this.ballAnimation.active = false;
-                        console.log('Ball animation stopped - ball came to rest at position:', {
-                            x: this.golfBall.x.toFixed(2),
-                            y: this.golfBall.y.toFixed(2),
-                            z: this.golfBall.z.toFixed(2)
-                        });
+                        // Ball has come to rest - start disappearing countdown
+                        if (!this.ballAnimation.restTime) {
+                            this.ballAnimation.restTime = now;
+                            console.log('🛑 Ball came to rest - starting disappear countdown at position:', {
+                                x: this.golfBall.x.toFixed(2),
+                                y: this.golfBall.y.toFixed(2),
+                                z: this.golfBall.z.toFixed(2)
+                            });
+                        }
+                        
+                        // Check if ball has been at rest long enough to disappear
+                        const restDuration = now - this.ballAnimation.restTime;
+                        const disappearDelay = 2000; // Ball disappears after 2 seconds at rest
+                        
+                        if (restDuration >= disappearDelay) {
+                            // Start disappearing animation by making ball fall through ground
+                            this.ballAnimation.velocity.z = -10; // Make ball fall through ground
+                            this.ballAnimation.restTime = null; // Reset rest timer
+                            console.log('👻 Ball disappearing - falling through terrain after being at rest');
+                        }
+                    } else {
+                        // Ball is moving again, reset rest timer
+                        this.ballAnimation.restTime = null;
                     }
                 } else {
                     // Still has significant horizontal speed but not bouncing much
@@ -609,12 +645,13 @@ class GolfCourse {    constructor(renderer) {
         } else {
             // Reset out of bounds flag if ball somehow comes back onto terrain
             this.ballAnimation.outOfBounds = false;
-        }
-          // Stop the ball animation once it becomes invisible (same logic as renderBall)
+        }        // Stop the ball animation once it becomes invisible (same logic as renderBall)
         if (this.golfBall.z < -2) { // Ball has fallen too far to be visible
             this.ballAnimation.active = false;
-            console.log(`👻 Ball animation stopped - ball is no longer visible (z: ${this.golfBall.z.toFixed(2)})`);
-            console.log(`✅ Ball status should now change from 'Flying' to 'Ready'`);
+            console.log(`👻 ANIMATION STOPPED - Ball invisible (z: ${this.golfBall.z.toFixed(2)})`);
+            console.log(`   Ball position: (${this.golfBall.x.toFixed(2)}, ${this.golfBall.y.toFixed(2)}, ${this.golfBall.z.toFixed(2)})`);
+            console.log(`   Animation was active: true → false`);
+            console.log(`   Ball status should change: 'Flying' → 'Ready'`);
             return;
         }
         
