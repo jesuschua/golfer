@@ -324,7 +324,7 @@ class GolfCourse {    constructor(renderer) {
             x: startX,
             y: startY,
             z: startHeight,
-            radius: 0.8
+            radius: 0.2  // Reduced from 0.8 to make it smaller
         };
         
         console.log('Ball animation started with randomness:');
@@ -897,7 +897,7 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.stroke();
         
         // Flag
-        this.renderer.ctx.fillStyle = '#c8a882';
+        this.renderer.ctx.fillStyle = '#FF7F00'; // Bright orange flag
         this.renderer.ctx.fillRect(poleEnd.x, poleEnd.y - 2, 8, 4);
         this.renderer.ctx.restore();
     }    renderBall() {
@@ -976,18 +976,27 @@ class GolfCourse {    constructor(renderer) {
         }
         
         // Render the golf ball at its current position (including height)
-        this.renderer.drawCircle(
-            ball.x,
-            ball.y,
-            ball.radius,
-            '#ffffff',
-            '#e0e0e0',
-            ball.z || 0 // Use Z coordinate for elevation
+        // Use a more circular approach for the ball
+        const ballScreen = this.renderer.transformPoint(ball.x, ball.y, ball.z || 0);
+        this.renderer.ctx.save();
+        this.renderer.ctx.fillStyle = '#ffffff';
+        this.renderer.ctx.strokeStyle = '#e0e0e0';
+        this.renderer.ctx.lineWidth = 0.5;
+        this.renderer.ctx.beginPath();
+        // Use a circle with equal width and height for a rounder appearance
+        this.renderer.ctx.arc(
+            ballScreen.x, 
+            ballScreen.y,
+            ball.radius * this.renderer.scale,  // Use the same size for width and height
+            0, 
+            Math.PI * 2
         );
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        this.renderer.ctx.restore();
         
         // Add golf ball dimples with proper spin
         this.renderer.ctx.save();
-        const ballScreen = this.renderer.transformPoint(ball.x, ball.y, ball.z || 0);
         this.renderer.ctx.globalAlpha = 0.3;
         this.renderer.ctx.fillStyle = '#d0d0d0';
         
