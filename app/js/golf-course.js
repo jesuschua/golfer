@@ -234,29 +234,29 @@ class GolfCourse {    constructor(renderer) {
         const targetFeature = weightedTargets[randomInt(0, weightedTargets.length - 1)];
         const finalX = targetFeature.x;
         const finalY = targetFeature.y;
-        
-        // Calculate starting position - always from the direction AWAY from the hole
-        // This makes it look like the ball is always aimed toward the hole
+          // Calculate starting position - much closer and aimed directly at target
         const green = this.currentHole.green;
         const pin = green.pin;
-        const holeDirection = Math.atan2(pin.y - finalY, pin.x - finalX);
-        const startDistance = random(100, 140); // Vary the start distance for more randomness
-        const startAngle = holeDirection + Math.PI + random(-0.4, 0.4); // Opposite to hole direction with variance
+        
+        // Start much closer and aim directly at the target (not the pin)
+        const targetDirection = Math.atan2(finalY - pin.y, finalX - pin.x);
+        const startDistance = random(40, 60); // Much closer starting distance
+        const startAngle = targetDirection + Math.PI + random(-0.2, 0.2); // Less variance, more direct
         
         const startX = finalX + Math.cos(startAngle) * startDistance;
-        const startY = finalY + Math.sin(startAngle) * startDistance;          console.log(`🎯 Ball targeted to ${targetFeature.type} at (${finalX.toFixed(1)}, ${finalY.toFixed(1)}) - Coming from direction toward hole at (${pin.x.toFixed(1)}, ${pin.y.toFixed(1)})`);
+        const startY = finalY + Math.sin(startAngle) * startDistance;console.log(`🎯 Ball targeted to ${targetFeature.type} at (${finalX.toFixed(1)}, ${finalY.toFixed(1)}) - Coming from direction toward hole at (${pin.x.toFixed(1)}, ${pin.y.toFixed(1)})`);
         console.log(`📊 Target distribution: Green hits likely, fairway hits common, terrain grid squares common, other features possible`);this.ballAnimation = {
             active: true,
             startTime: Date.now(),
             duration: 15000, // 15 seconds max (but physics can end it sooner)
-            startPos: { x: startX, y: startY, z: 40 }, // Start higher in the air
+            startPos: { x: startX, y: startY, z: 8 }, // Start lower for steeper descent
             endPos: { x: finalX, y: finalY, z: 0 }, // End on the ground
-            currentPos: { x: startX, y: startY, z: 40 },
+            currentPos: { x: startX, y: startY, z: 8 },
             velocity: { x: 0, y: 0, z: 0 }, // Will be calculated
             bounces: 0,
-            maxBounces: 5, // Allow more bounces
-            bounceDecay: 0.85, // Less energy loss per bounce
-            gravity: 9.8, // Realistic gravity
+            maxBounces: 3, // Fewer bounces for quick landing
+            bounceDecay: 0.7, // More energy loss per bounce
+            gravity: 20, // Higher gravity for faster descent
             spin: random(0, Math.PI * 2), // Initial random spin
             spinRate: 0, // Spin rate will be based on velocity
             lastGroundTime: 0, // Track when the ball last hit the ground
@@ -266,21 +266,19 @@ class GolfCourse {    constructor(renderer) {
         const xDistance = finalX - startX;
         const yDistance = finalY - startY;
         const distance = Math.sqrt(xDistance * xDistance + yDistance * yDistance);
-        
-        // Normalize for consistent speed regardless of distance
-        const speed = 80; // Base speed
+          // Much slower horizontal speed for steeper trajectory
+        const speed = 18; // Reduced speed for better control
         const directionX = xDistance / distance;
         const directionY = yDistance / distance;
         
         this.ballAnimation.velocity.x = directionX * speed;
-        this.ballAnimation.velocity.y = directionY * speed;
-        this.ballAnimation.velocity.z = 15; // Initial upward velocity for arc
+        this.ballAnimation.velocity.y = directionY * speed;        this.ballAnimation.velocity.z = 2; // Very small upward velocity for quick descent
         
         // Initialize the ball at starting position
         this.golfBall = {
             x: startX,
             y: startY,
-            z: 40,
+            z: 8, // Start lower
             radius: 0.8
         };
           console.log('Ball animation started - Initial velocity:', {
