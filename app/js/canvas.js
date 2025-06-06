@@ -71,11 +71,9 @@ class CanvasRenderer {
         }
 
         this.ctx.restore();
-    }
-
-    // Draw a circle in isometric space
-    drawCircle(x, y, radius, fillStyle, strokeStyle = null, lineWidth = 1) {
-        const center = this.transformPoint(x, y);
+    }    // Draw a circle in isometric space
+    drawCircle(x, y, radius, fillStyle, strokeStyle = null, z = 0) {
+        const center = this.transformPoint(x, y, z);
         
         this.ctx.save();
         this.ctx.fillStyle = fillStyle;
@@ -94,7 +92,7 @@ class CanvasRenderer {
 
         if (strokeStyle) {
             this.ctx.strokeStyle = strokeStyle;
-            this.ctx.lineWidth = lineWidth;
+            this.ctx.lineWidth = 1;
             this.ctx.stroke();
         }
 

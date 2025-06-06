@@ -35,14 +35,20 @@ class GolfScreensaver {
         this.render();
         
         console.log('Golf Screensaver initialized successfully!');
-    }
-
-    setupEventListeners() {
+    }    setupEventListeners() {
         // Regenerate button
         const regenerateBtn = document.getElementById('regenerateBtn');
         if (regenerateBtn) {
             regenerateBtn.addEventListener('click', () => {
                 this.generateNewHole();
+            });
+        }
+
+        // Launch ball button
+        const launchBallBtn = document.getElementById('launchBallBtn');
+        if (launchBallBtn) {
+            launchBallBtn.addEventListener('click', () => {
+                this.launchBall();
             });
         }
 
@@ -58,6 +64,10 @@ class GolfScreensaver {
                 case 'Enter':
                     this.generateNewHole();
                     break;
+                case 'b': // 'B' for ball
+                case 'B':
+                    this.launchBall();
+                    break;
                 case 'Escape':
                     this.toggleFullscreen();
                     break;
@@ -66,12 +76,19 @@ class GolfScreensaver {
 
         // Auto-regenerate every 30 seconds for screensaver effect
         this.autoRegenerate();
-    }
-
-    generateNewHole() {
+    }    generateNewHole() {
         this.golfCourse.generateNewHole();
         this.updateHoleInfo();
+        this.updateBallStatus();
         this.render();
+    }
+
+    launchBall() {
+        if (this.golfCourse) {
+            this.golfCourse.startBallAnimation();
+            this.updateBallStatus();
+            console.log('Ball launched manually');
+        }
     }
 
     updateHoleInfo() {
@@ -81,17 +98,19 @@ class GolfScreensaver {
         }
     }
 
-    render() {
+    updateBallStatus() {
+        const ballStatus = document.getElementById('ballStatus');
+        if (ballStatus && this.golfCourse) {
+            const isAnimating = this.golfCourse.ballAnimation && this.golfCourse.ballAnimation.active;
+            ballStatus.textContent = `Ball: ${isAnimating ? 'Flying' : 'Ready'}`;
+        }
+    }    render() {
         this.golfCourse.render();
-    }
-
-    startRenderLoop() {
+        this.updateBallStatus(); // Update ball status every frame
+    }startRenderLoop() {
         const renderFrame = (timestamp) => {
-            // Throttle to 60 FPS
-            if (timestamp - this.lastRender >= 16.67) {
-                this.render();
-                this.lastRender = timestamp;
-            }
+            // Always render for smooth animation
+            this.render();
             this.animationId = requestAnimationFrame(renderFrame);
         };
         
