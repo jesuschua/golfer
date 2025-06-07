@@ -24,9 +24,7 @@ class GolfCourse {    constructor(renderer) {
             individualFlipDuration: 600, // Each individual tile flip takes 600ms
             tiles: new Map(), // Store animation state for each tile
             gridSize: 8 // Must match renderTerrain gridSize
-        };
-
-        // Element slide-from-above animation system
+        };        // Element slide-from-above animation system
         this.elementAnimation = {
             active: false,
             startTime: null,
@@ -35,18 +33,44 @@ class GolfCourse {    constructor(renderer) {
             elements: new Map(), // Store animation state for each element
             slideDistance: 60 // How far above the screen elements start
         };
+
+        // Element fade-out animation system (reverses the slide-in)
+        this.fadeOutAnimation = {
+            active: false,
+            startTime: null,
+            totalDuration: 1200, // Total time for all elements to fade out (1.2 seconds)
+            individualFadeDuration: 600, // Each element fade takes 600ms
+            elements: new Map(), // Store animation state for each element
+            slideDistance: 60, // How far elements slide before disappearing
+            onComplete: null // Callback function when fade-out completes
+        };
         
         this._lastUpdateTime = null;
         this.generateNewHole();
     }    generateNewHole() {
+        // If there's an existing hole, start fade-out animation first
+        if (this.currentHole && !this.fadeOutAnimation.active) {
+            console.log('🎭 Starting fade-out animation before generating new hole...');
+            this.startFadeOutAnimation(() => {
+                // Callback executed when fade-out is complete
+                console.log('✅ Fade-out complete, now generating new hole content');
+                this._generateNewHoleContent();
+            });
+            return; // Exit early, _generateNewHoleContent will be called via callback
+        }
+        
+        // If no existing hole or fade-out already active, generate directly
+        this._generateNewHoleContent();
+    }
+
+    _generateNewHoleContent() {
         // Clean up any existing balls from the previous course
         // Unlike other elements, balls don't slide in so they need manual cleanup
         if (this.golfBall) {
             console.log('🧹 Cleaning up existing ball for fresh course generation');
             this.golfBall = null;
         }
-        
-        // Stop any active ball animation
+          // Stop any active ball animation
         if (this.ballAnimation && this.ballAnimation.active) {
             console.log('🛑 Stopping active ball animation for fresh course generation');
             this.ballAnimation.active = false;
@@ -54,6 +78,9 @@ class GolfCourse {    constructor(renderer) {
             this.ballAnimation.restTime = null;
         }
         
+        // Clear fade-out animation state
+        this.fadeOutAnimation.active = false;
+        this.fadeOutAnimation.elements.clear();
         // Define the playable area - doubled in size for more expansive courses
         const width = 160;
         const height = 120;
@@ -343,8 +370,147 @@ class GolfCourse {    constructor(renderer) {
             // Now start the ball animation
             this.startBallAnimation();
         }
-    }    // Helper method to calculate slide animation offset for an element
+    }
+
+    // Start fade-out animation for all elements (reverses the slide-in effect)
+    startFadeOutAnimation(onComplete) {
+        console.log('🎭 Starting element fade-out animation...');
+        
+        this.fadeOutAnimation.active = true;
+        this.fadeOutAnimation.startTime = Date.now();
+        this.fadeOutAnimation.onComplete = onComplete;
+        this.fadeOutAnimation.elements.clear();
+        
+        // Get all current course elements
+        const hole = this.currentHole;
+        if (!hole) return;
+        
+        const elementTypes = [
+            { type: 'green', x: hole.green.x, y: hole.green.y },
+            { type: 'tee', x: hole.tee.x, y: hole.tee.y },
+            { type: 'pin', x: hole.green.pin.x, y: hole.green.pin.y }
+        ];
+        
+        // Add bunkers
+        hole.bunkers.forEach((bunker, index) => {
+            elementTypes.push({ type: `bunker-${index}`, x: bunker.x, y: bunker.y });
+        });
+        
+        // Add water hazards
+        hole.water.forEach((water, index) => {
+            elementTypes.push({ type: `water-${index}`, x: water.x, y: water.y });
+        });
+        
+        // Add trees
+        hole.trees.forEach((tree, index) => {
+            elementTypes.push({ type: `tree-${index}`, x: tree.x, y: tree.y });
+        });
+        
+        // Add fairway segments
+        hole.fairway.forEach((segment, index) => {
+            elementTypes.push({ type: `fairway-${index}`, x: segment.x, y: segment.y });
+        });
+        
+        // Assign staggered start times for smooth fade-out effect
+        elementTypes.forEach(element => {
+            const elementKey = `${element.type}`;
+            const randomStartDelay = Math.random() * (this.fadeOutAnimation.totalDuration - this.fadeOutAnimation.individualFadeDuration);
+            
+            this.fadeOutAnimation.elements.set(elementKey, {
+                startDelay: randomStartDelay,
+                fadeDuration: this.fadeOutAnimation.individualFadeDuration,
+                x: element.x,
+                y: element.y
+            });
+        });
+        
+        console.log(`🎬 ${this.fadeOutAnimation.elements.size} golf course elements will fade out individually over ${this.fadeOutAnimation.totalDuration}ms`);
+    }
+
+    // Update fade-out animation state
+    updateFadeOutAnimation() {
+        if (!this.fadeOutAnimation.active) return;
+        
+        const now = Date.now();
+        const elapsed = now - this.fadeOutAnimation.startTime;
+        
+        // Check if the total animation duration is complete
+        if (elapsed >= this.fadeOutAnimation.totalDuration) {
+            this.fadeOutAnimation.active = false;
+            console.log('✅ Element fade-out animation completed');
+            
+            // Call completion callback if provided
+            if (this.fadeOutAnimation.onComplete) {
+                this.fadeOutAnimation.onComplete();
+                this.fadeOutAnimation.onComplete = null;
+            }
+        }
+    }
+
+    // Calculate slide offset for elements during fade-out (opposite direction from slide-in)
+    getFadeOutSlideOffset(elementKey) {
+        if (!this.fadeOutAnimation.active) return 0;
+        
+        const elementData = this.fadeOutAnimation.elements.get(elementKey);
+        if (!elementData) return 0;
+        
+        const now = Date.now();
+        const globalElapsed = now - this.fadeOutAnimation.startTime;
+        const elementElapsed = globalElapsed - elementData.startDelay;
+        
+        // Check if this is a fairway segment - they fade out in opposite direction
+        const isFairwaySegment = elementKey.startsWith('fairway-');
+        
+        // If element fade-out hasn't started yet, show element at normal position
+        if (elementElapsed <= 0) {
+            return 0;
+        }
+        
+        // If element fade-out is in progress
+        if (elementElapsed < elementData.fadeDuration) {
+            const progress = elementElapsed / elementData.fadeDuration;
+            // Ease-in animation for smooth exit
+            const easeInProgress = Math.pow(progress, 2);
+            
+            if (isFairwaySegment) {
+                // Fairway segments slide down below screen (zero to positive)
+                const offset = this.fadeOutAnimation.slideDistance * easeInProgress;
+                return offset;
+            } else {
+                // Other elements slide up above screen (zero to negative)
+                const offset = -this.fadeOutAnimation.slideDistance * easeInProgress;
+                return offset;
+            }
+        }
+        
+        // Element fade-out is complete, element should be off-screen
+        if (isFairwaySegment) {
+            return this.fadeOutAnimation.slideDistance;
+        } else {
+            return -this.fadeOutAnimation.slideDistance;
+        }
+    }
+
+    // Check if an element should be visible during fade-out
+    shouldRenderElementDuringFadeOut(elementKey) {
+        if (!this.fadeOutAnimation.active) return true;
+        
+        const elementData = this.fadeOutAnimation.elements.get(elementKey);
+        if (!elementData) return true; // Render if no animation data found
+        
+        const now = Date.now();
+        const globalElapsed = now - this.fadeOutAnimation.startTime;
+        const elementElapsed = globalElapsed - elementData.startDelay;
+        
+        // Hide element once its fade-out animation is complete
+        return elementElapsed < elementData.fadeDuration;
+    }// Helper method to calculate slide animation offset for an element
     getElementSlideOffset(elementKey) {
+        // Prioritize fade-out animation if active
+        if (this.fadeOutAnimation.active) {
+            return this.getFadeOutSlideOffset(elementKey);
+        }
+
         if (!this.elementAnimation.active) return 0;
         
         const elementData = this.elementAnimation.elements.get(elementKey);
@@ -387,8 +553,13 @@ class GolfCourse {    constructor(renderer) {
         
         // Element animation is complete, element is at final position
         return 0;
-    }// Helper method to check if an element should be visible (for slide-from-above animation)
+    }    // Helper method to check if an element should be visible (for slide-from-above animation)
     shouldRenderElement(elementKey) {
+        // Prioritize fade-out animation if active
+        if (this.fadeOutAnimation.active) {
+            return this.shouldRenderElementDuringFadeOut(elementKey);
+        }
+
         // If terrain animation is active, elements should be hidden
         if (this.terrainAnimation.active) return false;
         
@@ -1017,6 +1188,9 @@ class GolfCourse {    constructor(renderer) {
 
         // Update element animation if active
         this.updateElementAnimation();
+
+        // Update fade-out animation if active
+        this.updateFadeOutAnimation();
 
         // Update ball animation if active
         this.updateBallAnimation();
