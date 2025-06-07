@@ -32,9 +32,7 @@ class GolfCourse {    constructor(renderer) {
             individualSlideDuration: 800, // Each element slide takes 800ms
             elements: new Map(), // Store animation state for each element
             slideDistance: 60 // How far above the screen elements start
-        };
-
-        // Element fade-out animation system (reverses the slide-in)
+        };        // Element fade-out animation system (reverses the slide-in)
         this.fadeOutAnimation = {
             active: false,
             startTime: null,
@@ -43,6 +41,18 @@ class GolfCourse {    constructor(renderer) {
             elements: new Map(), // Store animation state for each element
             slideDistance: 60, // How far elements slide before disappearing
             onComplete: null // Callback function when fade-out completes
+        };
+
+        // Seagull animation system
+        this.seagullAnimation = {
+            active: false,
+            startTime: null,
+            duration: 8000, // 8 seconds to fly across screen at leisurely pace
+            startX: null,
+            endX: null,
+            y: null,
+            currentX: null,
+            size: 8 // Same size as flag width
         };
         
         this._lastUpdateTime = null;
@@ -114,6 +124,9 @@ class GolfCourse {    constructor(renderer) {
         
         // Start terrain tile flip animation
         this.startTerrainAnimation();
+        
+        // Start seagull animation immediately after course generation
+        this.startSeagullAnimation();
         
         // Ball animation will start automatically when terrain animation completes
     }
@@ -572,10 +585,109 @@ class GolfCourse {    constructor(renderer) {
         const now = Date.now();
         const globalElapsed = now - this.elementAnimation.startTime;
         const elementElapsed = globalElapsed - elementData.startDelay;
-        
-        // Only render if the element's animation has started
+          // Only render if the element's animation has started
         return elementElapsed >= 0;
-    }startBallAnimation() {
+    }
+
+    // Seagull animation methods
+    startSeagullAnimation() {
+        if (!this.currentHole) return;
+        
+        console.log('🐦 Starting seagull animation...');
+        
+        this.seagullAnimation.active = true;
+        this.seagullAnimation.startTime = Date.now();
+        
+        // Set flight path across the terrain
+        const hole = this.currentHole;
+        const direction = Math.random() > 0.5 ? 1 : -1; // Randomize direction
+        
+        if (direction > 0) {
+            // Fly left to right
+            this.seagullAnimation.startX = -20; // Start off-screen left
+            this.seagullAnimation.endX = hole.width + 20; // End off-screen right
+        } else {
+            // Fly right to left
+            this.seagullAnimation.startX = hole.width + 20; // Start off-screen right
+            this.seagullAnimation.endX = -20; // End off-screen left
+        }
+        
+        // Fly at a comfortable height above the terrain
+        this.seagullAnimation.y = Math.random() * (hole.height * 0.6) + (hole.height * 0.2); // Between 20% and 80% of height
+        this.seagullAnimation.currentX = this.seagullAnimation.startX;
+        
+        console.log(`🐦 Seagull will fly from (${this.seagullAnimation.startX.toFixed(1)}, ${this.seagullAnimation.y.toFixed(1)}) to (${this.seagullAnimation.endX.toFixed(1)}, ${this.seagullAnimation.y.toFixed(1)}) over ${this.seagullAnimation.duration}ms`);
+    }
+
+    updateSeagullAnimation() {
+        if (!this.seagullAnimation.active) return;
+        
+        const now = Date.now();
+        const elapsed = now - this.seagullAnimation.startTime;
+        const progress = elapsed / this.seagullAnimation.duration;
+        
+        if (progress >= 1.0) {
+            // Animation complete
+            this.seagullAnimation.active = false;
+            console.log('✅ Seagull animation completed');
+            return;
+        }
+        
+        // Update seagull position with smooth linear interpolation
+        const totalDistance = this.seagullAnimation.endX - this.seagullAnimation.startX;
+        this.seagullAnimation.currentX = this.seagullAnimation.startX + (totalDistance * progress);
+    }
+
+    renderSeagull() {
+        if (!this.seagullAnimation.active) return;
+        
+        const seagull = this.seagullAnimation;
+        const flightHeight = 15; // Flying at moderate height above ground
+        
+        // Transform to screen coordinates
+        const seagullScreen = this.renderer.transformPoint(seagull.currentX, seagull.y, flightHeight);
+        
+        this.renderer.ctx.save();
+        
+        // Simple seagull silhouette - white bird with basic wing shape
+        this.renderer.ctx.fillStyle = '#ffffff';
+        this.renderer.ctx.strokeStyle = '#e0e0e0';
+        this.renderer.ctx.lineWidth = 1;
+        
+        const size = seagull.size * this.renderer.scale;
+        const time = Date.now() * 0.008; // Wing flapping speed
+        const wingFlap = Math.sin(time) * 0.3; // Wing animation amplitude
+        
+        // Draw body (central oval)
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.ellipse(seagullScreen.x, seagullScreen.y, size * 0.3, size * 0.15, 0, 0, Math.PI * 2);
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // Draw wings (two curved lines)
+        this.renderer.ctx.beginPath();
+        // Left wing
+        this.renderer.ctx.moveTo(seagullScreen.x - size * 0.2, seagullScreen.y);
+        this.renderer.ctx.quadraticCurveTo(
+            seagullScreen.x - size * 0.6, 
+            seagullScreen.y - size * 0.3 + wingFlap * size, 
+            seagullScreen.x - size * 0.8, 
+            seagullScreen.y + size * 0.1
+        );
+        // Right wing
+        this.renderer.ctx.moveTo(seagullScreen.x + size * 0.2, seagullScreen.y);
+        this.renderer.ctx.quadraticCurveTo(
+            seagullScreen.x + size * 0.6, 
+            seagullScreen.y - size * 0.3 + wingFlap * size, 
+            seagullScreen.x + size * 0.8, 
+            seagullScreen.y + size * 0.1
+        );
+        this.renderer.ctx.stroke();
+        
+        this.renderer.ctx.restore();
+    }
+
+    startBallAnimation() {
         // Check if a ball is actually still flying using physics-based logic
         let ballCurrentlyFlying = false;
         if (this.golfBall && this.ballAnimation && this.ballAnimation.velocity) {
@@ -1181,9 +1293,7 @@ class GolfCourse {    constructor(renderer) {
     }    render() {
         this.renderer.clear();
         
-        if (!this.currentHole) return;
-
-        // Update terrain animation if active
+        if (!this.currentHole) return;        // Update terrain animation if active
         this.updateTerrainAnimation();
 
         // Update element animation if active
@@ -1192,10 +1302,11 @@ class GolfCourse {    constructor(renderer) {
         // Update fade-out animation if active
         this.updateFadeOutAnimation();
 
-        // Update ball animation if active
-        this.updateBallAnimation();
+        // Update seagull animation if active
+        this.updateSeagullAnimation();
 
-        // Render in order: terrain, water, fairway, rough, bunkers, green, tee, trees, ball
+        // Update ball animation if active
+        this.updateBallAnimation();        // Render in order: terrain, water, fairway, rough, bunkers, green, tee, trees, ball, seagull
         this.renderTerrain();
         this.renderWater();
         this.renderFairway();
@@ -1205,6 +1316,7 @@ class GolfCourse {    constructor(renderer) {
         this.renderTrees();
         this.renderPin();
         this.renderBall();
+        this.renderSeagull();
     }renderTerrain() {
         // Render smooth, consistent terrain with optional tile flip animation
         const hole = this.currentHole;
