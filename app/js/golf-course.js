@@ -728,12 +728,12 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.strokeStyle = '#ffffff';
         this.renderer.ctx.fillStyle = '#ffffff';
         this.renderer.ctx.lineWidth = size * 0.15;
-        this.renderer.ctx.lineCap = 'round';
-        
-        // Draw simple seagull body (small oval)
+        this.renderer.ctx.lineCap = 'round';        // Draw simple seagull body (small oval)
         this.renderer.ctx.beginPath();
         this.renderer.ctx.ellipse(0, 0, size * 0.3, size * 0.1, 0, 0, Math.PI * 2);
-        this.renderer.ctx.fill();        // Draw seagull wings (simple V shape that flaps) - wings angled forward with asymmetric movement
+        this.renderer.ctx.fill();
+        
+        // Draw seagull wings (simple V shape that flaps) - wings angled forward with asymmetric movement
         this.renderer.ctx.beginPath();
         
         // Left wing - angled forward and up with independent flapping
