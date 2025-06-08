@@ -76,13 +76,18 @@ class GolfCourse {    constructor(renderer) {
         if (this.golfBall) {
             console.log('🧹 Cleaning up existing ball for fresh course generation');
             this.golfBall = null;
-        }
-          // Stop any active ball animation
+        }          // Stop any active ball animation
         if (this.ballAnimation && this.ballAnimation.active) {
             console.log('🛑 Stopping active ball animation for fresh course generation');
             this.ballAnimation.active = false;
             this.ballAnimation.isDisappearing = false;
             this.ballAnimation.restTime = null;
+        }
+        
+        // Stop any active seagull animation
+        if (this.seagullAnimation && this.seagullAnimation.active) {
+            console.log('🛑 Stopping active seagull animation for fresh course generation');
+            this.seagullAnimation.active = false;
         }
         
         // Clear fade-out animation state
@@ -619,52 +624,52 @@ class GolfCourse {    constructor(renderer) {
         // Set flight path across the terrain
         const hole = this.currentHole;
         const margin = 20; // Off-screen margin
-        
-        // Define flight patterns
+          // Define flight patterns with better visibility balance
+        // Adjusted Y positions to stay more centered and visible longer
         const flightPatterns = [
             // Left-to-right horizontal flights
             {
                 name: 'left-to-right-high',
                 startX: -margin,
                 endX: hole.width + margin,
-                startY: hole.height * 0.3,
-                endY: hole.height * 0.3 + Math.random() * (hole.height * 0.1)
+                startY: hole.height * 0.35, // Moved down from 0.3 for better visibility
+                endY: hole.height * 0.35 + Math.random() * (hole.height * 0.08)
             },
             {
                 name: 'left-to-right-middle',
                 startX: -margin,
                 endX: hole.width + margin,
                 startY: hole.height * 0.5,
-                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.1)
+                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.08)
             },
             {
                 name: 'left-to-right-low',
                 startX: -margin,
                 endX: hole.width + margin,
-                startY: hole.height * 0.7,
-                endY: hole.height * 0.7 + Math.random() * (hole.height * 0.1)
+                startY: hole.height * 0.65, // Moved up from 0.7 for better visibility
+                endY: hole.height * 0.65 + Math.random() * (hole.height * 0.08)
             },
             // Right-to-left horizontal flights
             {
                 name: 'right-to-left-high',
                 startX: hole.width + margin,
                 endX: -margin,
-                startY: hole.height * 0.3,
-                endY: hole.height * 0.3 + Math.random() * (hole.height * 0.1)
+                startY: hole.height * 0.35, // Moved down from 0.3 for better visibility
+                endY: hole.height * 0.35 + Math.random() * (hole.height * 0.08)
             },
             {
                 name: 'right-to-left-middle',
                 startX: hole.width + margin,
                 endX: -margin,
                 startY: hole.height * 0.5,
-                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.1)
+                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.08)
             },
             {
                 name: 'right-to-left-low',
                 startX: hole.width + margin,
                 endX: -margin,
-                startY: hole.height * 0.7,
-                endY: hole.height * 0.7 + Math.random() * (hole.height * 0.1)
+                startY: hole.height * 0.65, // Moved up from 0.7 for better visibility
+                endY: hole.height * 0.65 + Math.random() * (hole.height * 0.08)
             }
         ];
         
@@ -755,41 +760,40 @@ class GolfCourse {    constructor(renderer) {
                 size: 2.5 * sizeVariation,                wingOffset: Math.random() * Math.PI * 2 // Random wing animation phase
             };
             
-            flock.push(follower);
-        }
-    }    updateSeagullAnimation() {
+            flock.push(follower);        }
+    }
+
+    updateSeagullAnimation() {
         if (!this.seagullAnimation.active) return;
         
         const now = Date.now();
-        const elapsed = now - this.seagullAnimation.startTime;
-        const progress = elapsed / this.seagullAnimation.duration;
+        const elapsed = now - this.seagullAnimation.startTime;        const progress = elapsed / this.seagullAnimation.duration;
         
-        if (progress >= 1.0) {
-            // Animation complete
-            this.seagullAnimation.active = false;
-            console.log('✅ Seagull flock animation completed');
-            return;
-        }
+        // Let birds continue flying - they'll be removed when course refreshes at 30 seconds
         
         // Update position for each bird in the flock
         this.seagullAnimation.flock.forEach(bird => {
             const totalDistanceX = bird.endX - bird.startX;
             const totalDistanceY = bird.endY - bird.startY;
-            
-            bird.currentX = bird.startX + (totalDistanceX * progress);
+              bird.currentX = bird.startX + (totalDistanceX * progress);
             bird.currentY = bird.startY + (totalDistanceY * progress);
         });
-    }    renderSeagull() {
+    }
+
+    renderSeagull() {
         if (!this.seagullAnimation.active || this.seagullAnimation.flock.length === 0) return;
         
-        const flightHeight = 15; // Flying at moderate height above ground
-        
-        // Render each bird in the flock
+        const flightHeight = 15; // Flying at moderate height above ground        // Render each bird in the flock
         this.seagullAnimation.flock.forEach(bird => {
-            this.renderSingleSeagull(bird, flightHeight);
-        });
-    }
-      renderSingleSeagull(bird, flightHeight) {
+            // Basic visibility check - only render if bird is reasonably close to screen
+            const margin = 200; // Pixels beyond screen edge to still render
+            if (bird.currentX >= -margin && bird.currentX <= this.renderer.getWidth() + margin &&
+                bird.currentY >= -margin && bird.currentY <= this.renderer.getHeight() + margin) {
+                this.renderSingleSeagull(bird, flightHeight);
+            }
+        });}
+
+    renderSingleSeagull(bird, flightHeight) {
         // Transform to screen coordinates
         const seagullScreen = this.renderer.transformPoint(bird.currentX, bird.currentY, flightHeight);
         
