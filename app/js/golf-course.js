@@ -41,18 +41,18 @@ class GolfCourse {    constructor(renderer) {
             elements: new Map(), // Store animation state for each element
             slideDistance: 60, // How far elements slide before disappearing
             onComplete: null // Callback function when fade-out completes
-        };
-
-        // Seagull animation system
+        };        // Seagull animation system
         this.seagullAnimation = {
             active: false,
             startTime: null,
-            duration: 8000, // 8 seconds to fly across screen at leisurely pace
+            duration: 15000, // 15 seconds to fly across screen at a very leisurely pace (slowed from 12s)
             startX: null,
             endX: null,
-            y: null,
+            startY: null,
+            endY: null,
             currentX: null,
-            size: 8 // Same size as flag width
+            currentY: null,
+            size: 2.5 // About 1/3 the size of the flag (reduced from 8)
         };
         
         this._lastUpdateTime = null;
@@ -590,6 +590,7 @@ class GolfCourse {    constructor(renderer) {
     }
 
     // Seagull animation methods
+    
     startSeagullAnimation() {
         if (!this.currentHole) return;
         
@@ -598,28 +599,86 @@ class GolfCourse {    constructor(renderer) {
         this.seagullAnimation.active = true;
         this.seagullAnimation.startTime = Date.now();
         
-        // Set flight path across the terrain
+        // Set flight path across the terrain with multiple possible directions
         const hole = this.currentHole;
-        const direction = Math.random() > 0.5 ? 1 : -1; // Randomize direction
+        const margin = 20; // Off-screen margin
         
-        if (direction > 0) {
-            // Fly left to right
-            this.seagullAnimation.startX = -20; // Start off-screen left
-            this.seagullAnimation.endX = hole.width + 20; // End off-screen right
-        } else {
-            // Fly right to left
-            this.seagullAnimation.startX = hole.width + 20; // Start off-screen right
-            this.seagullAnimation.endX = -20; // End off-screen left
-        }
+        // Define multiple flight patterns seagulls can take
+        const flightPatterns = [
+            // Horizontal flights (left-right, right-left)
+            {
+                name: 'left-to-right',
+                startX: -margin,
+                endX: hole.width + margin,
+                startY: Math.random() * (hole.height * 0.6) + (hole.height * 0.2),
+                endY: Math.random() * (hole.height * 0.6) + (hole.height * 0.2)
+            },
+            {
+                name: 'right-to-left', 
+                startX: hole.width + margin,
+                endX: -margin,
+                startY: Math.random() * (hole.height * 0.6) + (hole.height * 0.2),
+                endY: Math.random() * (hole.height * 0.6) + (hole.height * 0.2)
+            },
+            // Vertical flights (top-bottom, bottom-top)
+            {
+                name: 'top-to-bottom',
+                startX: Math.random() * (hole.width * 0.6) + (hole.width * 0.2),
+                endX: Math.random() * (hole.width * 0.6) + (hole.width * 0.2),
+                startY: -margin,
+                endY: hole.height + margin
+            },
+            {
+                name: 'bottom-to-top',
+                startX: Math.random() * (hole.width * 0.6) + (hole.width * 0.2),
+                endX: Math.random() * (hole.width * 0.6) + (hole.width * 0.2),
+                startY: hole.height + margin,
+                endY: -margin
+            },
+            // Diagonal flights (corner-to-corner)
+            {
+                name: 'top-left-to-bottom-right',
+                startX: -margin,
+                endX: hole.width + margin,
+                startY: -margin,
+                endY: hole.height + margin
+            },
+            {
+                name: 'top-right-to-bottom-left',
+                startX: hole.width + margin,
+                endX: -margin,
+                startY: -margin,
+                endY: hole.height + margin
+            },
+            {
+                name: 'bottom-left-to-top-right',
+                startX: -margin,
+                endX: hole.width + margin,
+                startY: hole.height + margin,
+                endY: -margin
+            },
+            {
+                name: 'bottom-right-to-top-left',
+                startX: hole.width + margin,
+                endX: -margin,
+                startY: hole.height + margin,
+                endY: -margin
+            }
+        ];
         
-        // Fly at a comfortable height above the terrain
-        this.seagullAnimation.y = Math.random() * (hole.height * 0.6) + (hole.height * 0.2); // Between 20% and 80% of height
-        this.seagullAnimation.currentX = this.seagullAnimation.startX;
+        // Randomly select a flight pattern
+        const selectedPattern = flightPatterns[Math.floor(Math.random() * flightPatterns.length)];
         
-        console.log(`🐦 Seagull will fly from (${this.seagullAnimation.startX.toFixed(1)}, ${this.seagullAnimation.y.toFixed(1)}) to (${this.seagullAnimation.endX.toFixed(1)}, ${this.seagullAnimation.y.toFixed(1)}) over ${this.seagullAnimation.duration}ms`);
-    }
-
-    updateSeagullAnimation() {
+        // Apply the selected pattern
+        this.seagullAnimation.startX = selectedPattern.startX;
+        this.seagullAnimation.endX = selectedPattern.endX;
+        this.seagullAnimation.startY = selectedPattern.startY;
+        this.seagullAnimation.endY = selectedPattern.endY;
+        this.seagullAnimation.currentX = selectedPattern.startX;
+        this.seagullAnimation.currentY = selectedPattern.startY;
+        
+        console.log(`🐦 Seagull ${selectedPattern.name}: from (${selectedPattern.startX.toFixed(1)}, ${selectedPattern.startY.toFixed(1)}) to (${selectedPattern.endX.toFixed(1)}, ${selectedPattern.endY.toFixed(1)}) over ${this.seagullAnimation.duration}ms`);
+    }    updateSeagullAnimation() {
         if (!this.seagullAnimation.active) return;
         
         const now = Date.now();
@@ -633,56 +692,269 @@ class GolfCourse {    constructor(renderer) {
             return;
         }
         
-        // Update seagull position with smooth linear interpolation
-        const totalDistance = this.seagullAnimation.endX - this.seagullAnimation.startX;
-        this.seagullAnimation.currentX = this.seagullAnimation.startX + (totalDistance * progress);
-    }
-
-    renderSeagull() {
+        // Update seagull position with smooth linear interpolation in both X and Y
+        const totalDistanceX = this.seagullAnimation.endX - this.seagullAnimation.startX;
+        const totalDistanceY = this.seagullAnimation.endY - this.seagullAnimation.startY;
+        
+        this.seagullAnimation.currentX = this.seagullAnimation.startX + (totalDistanceX * progress);
+        this.seagullAnimation.currentY = this.seagullAnimation.startY + (totalDistanceY * progress);
+    }    renderSeagull() {
         if (!this.seagullAnimation.active) return;
         
         const seagull = this.seagullAnimation;
         const flightHeight = 15; // Flying at moderate height above ground
         
-        // Transform to screen coordinates
-        const seagullScreen = this.renderer.transformPoint(seagull.currentX, seagull.y, flightHeight);
+        // Transform to screen coordinates using currentY instead of fixed y
+        const seagullScreen = this.renderer.transformPoint(seagull.currentX, seagull.currentY, flightHeight);
+          this.renderer.ctx.save();
+          const size = seagull.size * this.renderer.scale;
         
-        this.renderer.ctx.save();
+        // Determine flight direction for proper bird orientation (must be before rotation)
+        const deltaX = this.seagullAnimation.endX - this.seagullAnimation.startX;
+        const deltaY = this.seagullAnimation.endY - this.seagullAnimation.startY;
+        const flightAngle = Math.atan2(deltaY, deltaX); // Angle of flight in radians
+        const direction = deltaX > 0 ? 1 : -1; // Still useful for basic left/right orientation
         
-        // Simple seagull silhouette - white bird with basic wing shape
-        this.renderer.ctx.fillStyle = '#ffffff';
-        this.renderer.ctx.strokeStyle = '#e0e0e0';
-        this.renderer.ctx.lineWidth = 1;
+        // Apply rotation based on flight direction
+        this.renderer.ctx.translate(seagullScreen.x, seagullScreen.y);
+        this.renderer.ctx.rotate(flightAngle);
+        this.renderer.ctx.translate(-seagullScreen.x, -seagullScreen.y);
         
-        const size = seagull.size * this.renderer.scale;
-        const time = Date.now() * 0.008; // Wing flapping speed
-        const wingFlap = Math.sin(time) * 0.3; // Wing animation amplitude
+        // Naturalistic seagull wing flapping - much slower, with gliding periods
+        const time = Date.now() * 0.001; // Slower flapping frequency for realism
+        const flapCycle = Math.sin(time) * 0.5 + 0.5; // 0 to 1 cycle
+        // Seagulls glide 80% of the time, only flap 20% of the time
+        const isFlapping = flapCycle > 0.8;
+        const wingFlap = isFlapping ? Math.sin(time * 12) * 0.4 : 0; // Quick flaps when flapping
         
-        // Draw body (central oval)
+        // Enhanced realistic seagull colors
+        const bodyColor = '#ffffff';       // Pure white body
+        const headColor = '#fefefe';       // Slightly warmer white for head
+        const wingColor = '#f5f5f5';       // Light gray wings
+        const wingTipColor = '#404040';    // Dark charcoal wing tips
+        const beakBaseColor = '#ffcc33';   // Bright yellow-orange beak base
+        const beakTipColor = '#ff6b35';    // Orange-red beak tip
+        const eyeColor = '#000000';        // Deep black eye
+        const eyeRingColor = '#333333';    // Dark eye ring
+        const neckShadow = '#f0f0f0';      // Subtle neck shadow
+        const legColor = '#ff8c42';        // Orange legs (if visible)
+        
+        // === SEAGULL BODY (streamlined, elongated) ===
+        this.renderer.ctx.fillStyle = bodyColor;
+        this.renderer.ctx.strokeStyle = '#e8e8e8';
+        this.renderer.ctx.lineWidth = 0.4;
+        
+        // Main body - elongated oval, typical seagull proportions
         this.renderer.ctx.beginPath();
-        this.renderer.ctx.ellipse(seagullScreen.x, seagullScreen.y, size * 0.3, size * 0.15, 0, 0, Math.PI * 2);
+        this.renderer.ctx.ellipse(seagullScreen.x, seagullScreen.y, size * 0.4, size * 0.15, 0, 0, Math.PI * 2);
         this.renderer.ctx.fill();
         this.renderer.ctx.stroke();
         
-        // Draw wings (two curved lines)
+        // === NECK TRANSITION (subtle shading) ===
+        this.renderer.ctx.fillStyle = neckShadow;
+        this.renderer.ctx.globalAlpha = 0.3;
         this.renderer.ctx.beginPath();
-        // Left wing
-        this.renderer.ctx.moveTo(seagullScreen.x - size * 0.2, seagullScreen.y);
-        this.renderer.ctx.quadraticCurveTo(
-            seagullScreen.x - size * 0.6, 
-            seagullScreen.y - size * 0.3 + wingFlap * size, 
-            seagullScreen.x - size * 0.8, 
-            seagullScreen.y + size * 0.1
+        this.renderer.ctx.ellipse(
+            seagullScreen.x + (direction * size * 0.15), 
+            seagullScreen.y - size * 0.02, 
+            size * 0.12, 
+            size * 0.08, 
+            0, 0, Math.PI * 2
         );
-        // Right wing
-        this.renderer.ctx.moveTo(seagullScreen.x + size * 0.2, seagullScreen.y);
-        this.renderer.ctx.quadraticCurveTo(
-            seagullScreen.x + size * 0.6, 
-            seagullScreen.y - size * 0.3 + wingFlap * size, 
-            seagullScreen.x + size * 0.8, 
-            seagullScreen.y + size * 0.1
-        );
+        this.renderer.ctx.fill();
+        this.renderer.ctx.globalAlpha = 1.0;
+        
+        // === SEAGULL HEAD ===
+        const headX = seagullScreen.x + (direction * size * 0.3);
+        const headY = seagullScreen.y - size * 0.05;
+        
+        // Rounded head with slight definition
+        this.renderer.ctx.fillStyle = headColor;
+        this.renderer.ctx.strokeStyle = '#e0e0e0';
+        this.renderer.ctx.lineWidth = 0.3;
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.ellipse(headX, headY, size * 0.15, size * 0.12, 0, 0, Math.PI * 2);
+        this.renderer.ctx.fill();
         this.renderer.ctx.stroke();
+        
+        // === ENHANCED SEAGULL BEAK (two-tone, realistic) ===
+        // Beak base (yellow-orange)
+        this.renderer.ctx.fillStyle = beakBaseColor;
+        this.renderer.ctx.strokeStyle = '#cc9900';
+        this.renderer.ctx.lineWidth = 0.2;
+        
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(headX + (direction * size * 0.12), headY + size * 0.01);
+        this.renderer.ctx.lineTo(headX + (direction * size * 0.22), headY - size * 0.015);
+        this.renderer.ctx.lineTo(headX + (direction * size * 0.22), headY + size * 0.035);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // Beak tip (orange-red)
+        this.renderer.ctx.fillStyle = beakTipColor;
+        this.renderer.ctx.strokeStyle = '#cc4400';
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(headX + (direction * size * 0.20), headY - size * 0.01);
+        this.renderer.ctx.lineTo(headX + (direction * size * 0.25), headY - size * 0.02);
+        this.renderer.ctx.lineTo(headX + (direction * size * 0.25), headY + size * 0.04);
+        this.renderer.ctx.lineTo(headX + (direction * size * 0.20), headY + size * 0.03);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // Beak nostril detail
+        this.renderer.ctx.fillStyle = '#996600';
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.ellipse(
+            headX + (direction * size * 0.16), 
+            headY - size * 0.005, 
+            size * 0.008, 
+            size * 0.005, 
+            0, 0, Math.PI * 2
+        );
+        this.renderer.ctx.fill();
+        
+        // === ENHANCED SEAGULL EYE (more realistic) ===
+        const eyeX = headX + (direction * size * 0.05);
+        const eyeY = headY - size * 0.03;
+        
+        // Eye ring (subtle)
+        this.renderer.ctx.fillStyle = eyeRingColor;
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.ellipse(eyeX, eyeY, size * 0.025, size * 0.025, 0, 0, Math.PI * 2);
+        this.renderer.ctx.fill();
+        
+        // Main eye
+        this.renderer.ctx.fillStyle = eyeColor;
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.ellipse(eyeX, eyeY, size * 0.02, size * 0.02, 0, 0, Math.PI * 2);
+        this.renderer.ctx.fill();
+        
+        // Eye highlight (makes it look alive)
+        this.renderer.ctx.fillStyle = '#ffffff';
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.ellipse(
+            eyeX + (direction * size * 0.008), 
+            eyeY - size * 0.008, 
+            size * 0.006, 
+            size * 0.006, 
+            0, 0, Math.PI * 2
+        );
+        this.renderer.ctx.fill();
+        
+        // === SEAGULL WINGS (enhanced with more detail) ===
+        const wingAngle = isFlapping ? wingFlap * 0.5 : -0.15; // Slight dihedral when gliding
+        this.renderer.ctx.fillStyle = wingColor;
+        this.renderer.ctx.strokeStyle = '#d5d5d5';
+        this.renderer.ctx.lineWidth = 0.6;
+        
+        // Wing positions affected by flapping
+        const wingY = seagullScreen.y + wingAngle * size * 0.3;
+        
+        // Left wing (long, narrow, pointed - classic seagull wing shape)
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(seagullScreen.x - size * 0.05, seagullScreen.y);
+        this.renderer.ctx.lineTo(seagullScreen.x - size * 0.8, wingY - size * 0.15);
+        this.renderer.ctx.lineTo(seagullScreen.x - size * 0.9, wingY - size * 0.05);
+        this.renderer.ctx.lineTo(seagullScreen.x - size * 0.7, wingY + size * 0.08);
+        this.renderer.ctx.lineTo(seagullScreen.x - size * 0.15, seagullScreen.y + size * 0.05);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // Right wing (mirrored)
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(seagullScreen.x + size * 0.05, seagullScreen.y);
+        this.renderer.ctx.lineTo(seagullScreen.x + size * 0.8, wingY - size * 0.15);
+        this.renderer.ctx.lineTo(seagullScreen.x + size * 0.9, wingY - size * 0.05);
+        this.renderer.ctx.lineTo(seagullScreen.x + size * 0.7, wingY + size * 0.08);
+        this.renderer.ctx.lineTo(seagullScreen.x + size * 0.15, seagullScreen.y + size * 0.05);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // === WING TIPS (dark, characteristic of seagulls) ===
+        this.renderer.ctx.fillStyle = wingTipColor;
+        this.renderer.ctx.strokeStyle = '#2a2a2a';
+        this.renderer.ctx.lineWidth = 0.3;
+        
+        // Left wing tips
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(seagullScreen.x - size * 0.75, wingY - size * 0.12);
+        this.renderer.ctx.lineTo(seagullScreen.x - size * 0.9, wingY - size * 0.05);
+        this.renderer.ctx.lineTo(seagullScreen.x - size * 0.8, wingY + size * 0.02);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // Right wing tips
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(seagullScreen.x + size * 0.75, wingY - size * 0.12);
+        this.renderer.ctx.lineTo(seagullScreen.x + size * 0.9, wingY - size * 0.05);
+        this.renderer.ctx.lineTo(seagullScreen.x + size * 0.8, wingY + size * 0.02);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // === WING FEATHER DETAILS (subtle lines for realism) ===
+        this.renderer.ctx.strokeStyle = '#cccccc';
+        this.renderer.ctx.lineWidth = 0.2;
+        this.renderer.ctx.globalAlpha = 0.6;
+        
+        // Left wing feather separations
+        for (let i = 1; i <= 3; i++) {
+            const featherX = seagullScreen.x - size * (0.3 + i * 0.15);
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.moveTo(featherX, wingY - size * 0.1);
+            this.renderer.ctx.lineTo(featherX + size * 0.05, wingY + size * 0.05);
+            this.renderer.ctx.stroke();
+        }
+        
+        // Right wing feather separations
+        for (let i = 1; i <= 3; i++) {
+            const featherX = seagullScreen.x + size * (0.3 + i * 0.15);
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.moveTo(featherX, wingY - size * 0.1);
+            this.renderer.ctx.lineTo(featherX - size * 0.05, wingY + size * 0.05);
+            this.renderer.ctx.stroke();
+        }
+        
+        this.renderer.ctx.globalAlpha = 1.0;
+        
+        // === TAIL (enhanced fan-shaped seagull tail) ===
+        const tailX = seagullScreen.x - (direction * size * 0.4);
+        const tailY = seagullScreen.y;
+        
+        this.renderer.ctx.fillStyle = wingColor;
+        this.renderer.ctx.strokeStyle = '#d0d0d0';
+        this.renderer.ctx.lineWidth = 0.4;
+        
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(tailX, tailY);
+        this.renderer.ctx.lineTo(tailX - (direction * size * 0.2), tailY - size * 0.12);
+        this.renderer.ctx.lineTo(tailX - (direction * size * 0.25), tailY);
+        this.renderer.ctx.lineTo(tailX - (direction * size * 0.2), tailY + size * 0.12);
+        this.renderer.ctx.closePath();
+        this.renderer.ctx.fill();
+        this.renderer.ctx.stroke();
+        
+        // Tail feather separations
+        this.renderer.ctx.strokeStyle = '#cccccc';
+        this.renderer.ctx.lineWidth = 0.2;
+        this.renderer.ctx.globalAlpha = 0.5;
+        
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(tailX - (direction * size * 0.05), tailY - size * 0.08);
+        this.renderer.ctx.lineTo(tailX - (direction * size * 0.2), tailY);
+        this.renderer.ctx.stroke();
+        
+        this.renderer.ctx.beginPath();
+        this.renderer.ctx.moveTo(tailX - (direction * size * 0.05), tailY + size * 0.08);
+        this.renderer.ctx.lineTo(tailX - (direction * size * 0.2), tailY);
+        this.renderer.ctx.stroke();
+        
+        this.renderer.ctx.globalAlpha = 1.0;
         
         this.renderer.ctx.restore();
     }
