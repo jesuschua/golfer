@@ -41,18 +41,15 @@ class GolfCourse {    constructor(renderer) {
             elements: new Map(), // Store animation state for each element
             slideDistance: 60, // How far elements slide before disappearing
             onComplete: null // Callback function when fade-out completes
-        };        // Seagull animation system
+        };        // Seagull flock animation system
         this.seagullAnimation = {
             active: false,
             startTime: null,
-            duration: 15000, // 15 seconds to fly across screen at a very leisurely pace (slowed from 12s)
-            startX: null,
-            endX: null,
-            startY: null,
-            endY: null,
-            currentX: null,
-            currentY: null,
-            size: 2.5 // Original size
+            duration: 15000, // 15 seconds to fly across screen at a very leisurely pace
+            flock: [], // Array of individual birds in the flock
+            flockSize: 1, // Number of birds (1-7)
+            formation: 'single', // 'single', 'v-formation', 'line', 'loose'
+            leadBird: null // The leading bird that others follow
         };
         
         this._lastUpdateTime = null;
@@ -590,78 +587,176 @@ class GolfCourse {    constructor(renderer) {
     }
 
     // Seagull animation methods
-    
-    startSeagullAnimation() {
+      startSeagullAnimation() {
         if (!this.currentHole) return;
         
-        console.log('🐦 Starting seagull animation...');
+        console.log('🐦 Starting seagull flock animation...');
         
         this.seagullAnimation.active = true;
-        this.seagullAnimation.startTime = Date.now();
+        this.seagullAnimation.startTime = Date.now();        // Randomly determine flock size (1-7 birds)
+        this.seagullAnimation.flockSize = Math.floor(Math.random() * 7) + 1;
         
-        // Set flight path across the terrain with multiple possible directions
+        // Select formation based on flock size with realistic probabilities
+        const flockSize = this.seagullAnimation.flockSize;
+        if (flockSize === 1) {
+            this.seagullAnimation.formation = 'single';
+        } else if (flockSize <= 3) {
+            // Small flocks: mostly line formation with some loose
+            this.seagullAnimation.formation = Math.random() < 0.7 ? 'line' : 'loose';
+        } else {
+            // Larger flocks: mostly V-formation (80%) with some line and loose
+            const rand = Math.random();
+            if (rand < 0.8) {
+                this.seagullAnimation.formation = 'v-formation';
+            } else if (rand < 0.9) {
+                this.seagullAnimation.formation = 'line';            } else {
+                this.seagullAnimation.formation = 'loose';
+            }
+        }
+        
+        console.log(`🐦 Created flock of ${this.seagullAnimation.flockSize} birds in ${this.seagullAnimation.formation} formation`);
+        
+        // Set flight path across the terrain
         const hole = this.currentHole;
-        const margin = 20; // Off-screen margin        // Define flight patterns in both directions for comparison
-        // Simple forward-angled wings look best when flying left-to-right with shallow angles only
+        const margin = 20; // Off-screen margin
+        
+        // Define flight patterns
         const flightPatterns = [
-            // Left-to-right horizontal flights (wings look natural pointing forward)
+            // Left-to-right horizontal flights
             {
                 name: 'left-to-right-high',
                 startX: -margin,
                 endX: hole.width + margin,
-                startY: hole.height * 0.3, // Upper third
-                endY: hole.height * 0.3 + Math.random() * (hole.height * 0.1) // Slight variation
+                startY: hole.height * 0.3,
+                endY: hole.height * 0.3 + Math.random() * (hole.height * 0.1)
             },
             {
                 name: 'left-to-right-middle',
                 startX: -margin,
                 endX: hole.width + margin,
-                startY: hole.height * 0.5, // Middle
-                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.1) // Slight variation
+                startY: hole.height * 0.5,
+                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.1)
             },
             {
                 name: 'left-to-right-low',
                 startX: -margin,
                 endX: hole.width + margin,
-                startY: hole.height * 0.7, // Lower third
-                endY: hole.height * 0.7 + Math.random() * (hole.height * 0.1) // Slight variation
+                startY: hole.height * 0.7,
+                endY: hole.height * 0.7 + Math.random() * (hole.height * 0.1)
             },
-            // Right-to-left horizontal flights (for comparison - wings will point backward)
+            // Right-to-left horizontal flights
             {
                 name: 'right-to-left-high',
                 startX: hole.width + margin,
                 endX: -margin,
-                startY: hole.height * 0.3, // Upper third
-                endY: hole.height * 0.3 + Math.random() * (hole.height * 0.1) // Slight variation
+                startY: hole.height * 0.3,
+                endY: hole.height * 0.3 + Math.random() * (hole.height * 0.1)
             },
             {
                 name: 'right-to-left-middle',
                 startX: hole.width + margin,
                 endX: -margin,
-                startY: hole.height * 0.5, // Middle
-                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.1) // Slight variation
+                startY: hole.height * 0.5,
+                endY: hole.height * 0.5 + Math.random() * (hole.height * 0.1)
             },
             {
                 name: 'right-to-left-low',
                 startX: hole.width + margin,
                 endX: -margin,
-                startY: hole.height * 0.7, // Lower third
-                endY: hole.height * 0.7 + Math.random() * (hole.height * 0.1) // Slight variation
+                startY: hole.height * 0.7,
+                endY: hole.height * 0.7 + Math.random() * (hole.height * 0.1)
             }
         ];
         
-        // Randomly select a flight pattern
+        // Randomly select a flight pattern for the lead bird
         const selectedPattern = flightPatterns[Math.floor(Math.random() * flightPatterns.length)];
         
-        // Apply the selected pattern
-        this.seagullAnimation.startX = selectedPattern.startX;
-        this.seagullAnimation.endX = selectedPattern.endX;
-        this.seagullAnimation.startY = selectedPattern.startY;
-        this.seagullAnimation.endY = selectedPattern.endY;
-        this.seagullAnimation.currentX = selectedPattern.startX;
-        this.seagullAnimation.currentY = selectedPattern.startY;
+        // Create the flock
+        this.seagullAnimation.flock = [];
+        this.createFlock(selectedPattern);
         
-        console.log(`🐦 Seagull ${selectedPattern.name}: from (${selectedPattern.startX.toFixed(1)}, ${selectedPattern.startY.toFixed(1)}) to (${selectedPattern.endX.toFixed(1)}, ${selectedPattern.endY.toFixed(1)}) over ${this.seagullAnimation.duration}ms`);
+        console.log(`🐦 Created flock of ${this.seagullAnimation.flockSize} birds in ${this.seagullAnimation.formation} formation: ${selectedPattern.name}`);
+        console.log(`🐦 Flock details:`, this.seagullAnimation.flock);
+    }
+    
+    createFlock(leadPattern) {
+        const flock = this.seagullAnimation.flock;
+        const flockSize = this.seagullAnimation.flockSize;
+        const formation = this.seagullAnimation.formation;
+        
+        // Create lead bird
+        const leadBird = {
+            id: 0,
+            isLead: true,
+            startX: leadPattern.startX,
+            endX: leadPattern.endX,
+            startY: leadPattern.startY,
+            endY: leadPattern.endY,
+            currentX: leadPattern.startX,
+            currentY: leadPattern.startY,
+            size: 2.5,
+            wingOffset: 0 // For wing animation variation
+        };
+        
+        flock.push(leadBird);
+        this.seagullAnimation.leadBird = leadBird;
+        
+        // Create formation positions for follower birds
+        if (flockSize > 1) {
+            this.createFormationPositions(leadPattern, formation, flockSize);
+        }
+    }
+    
+    createFormationPositions(leadPattern, formation, flockSize) {
+        const flock = this.seagullAnimation.flock;
+        const spacing = 8; // Distance between birds
+        const heightOffset = 3; // Vertical separation
+        
+        for (let i = 1; i < flockSize; i++) {
+            let offsetX = 0;
+            let offsetY = 0;
+            let sizeVariation = 0.8 + Math.random() * 0.4; // Size variation 0.8-1.2
+            
+            switch (formation) {                case 'v-formation':
+                    // True V formation - birds fly close together for aerodynamic benefit
+                    const side = i % 2 === 1 ? -1 : 1; // Alternate sides (left/right)
+                    const position = Math.ceil(i / 2); // Position back from leader (1, 2, 3...)
+                    
+                    // Much closer spacing for realistic V-formation aerodynamics
+                    // X offset: Birds are slightly behind AND diagonally positioned
+                    offsetX = -spacing * position * 0.8; // Only slightly behind (closer formation)
+                    
+                    // Y offset: Spread outward but much closer together
+                    offsetY = side * spacing * position * 1.2; // Much tighter Y spacing
+                    
+                    break;
+                    
+                case 'line':
+                    // Straight line formation
+                    offsetX = -spacing * i;
+                    offsetY = (Math.random() - 0.5) * heightOffset;
+                    break;
+                    
+                case 'loose':
+                    // Loose formation with random positions
+                    offsetX = -spacing * (0.5 + Math.random() * 1.5) * i;
+                    offsetY = (Math.random() - 0.5) * heightOffset * 2;
+                    break;
+            }
+              const follower = {
+                id: i,
+                isLead: false,
+                startX: leadPattern.startX + offsetX,
+                endX: leadPattern.endX + offsetX,
+                startY: leadPattern.startY + offsetY,
+                endY: leadPattern.endY + offsetY,
+                currentX: leadPattern.startX + offsetX,
+                currentY: leadPattern.startY + offsetY,
+                size: 2.5 * sizeVariation,                wingOffset: Math.random() * Math.PI * 2 // Random wing animation phase
+            };
+            
+            flock.push(follower);
+        }
     }    updateSeagullAnimation() {
         if (!this.seagullAnimation.active) return;
         
@@ -672,32 +767,51 @@ class GolfCourse {    constructor(renderer) {
         if (progress >= 1.0) {
             // Animation complete
             this.seagullAnimation.active = false;
-            console.log('✅ Seagull animation completed');
+            console.log('✅ Seagull flock animation completed');
             return;
         }
         
-        // Update seagull position with smooth linear interpolation in both X and Y
-        const totalDistanceX = this.seagullAnimation.endX - this.seagullAnimation.startX;
-        const totalDistanceY = this.seagullAnimation.endY - this.seagullAnimation.startY;
-        
-        this.seagullAnimation.currentX = this.seagullAnimation.startX + (totalDistanceX * progress);
-        this.seagullAnimation.currentY = this.seagullAnimation.startY + (totalDistanceY * progress);
+        // Update position for each bird in the flock
+        this.seagullAnimation.flock.forEach(bird => {
+            const totalDistanceX = bird.endX - bird.startX;
+            const totalDistanceY = bird.endY - bird.startY;
+            
+            bird.currentX = bird.startX + (totalDistanceX * progress);
+            bird.currentY = bird.startY + (totalDistanceY * progress);
+        });
     }    renderSeagull() {
-        if (!this.seagullAnimation.active) return;
+        if (!this.seagullAnimation.active || this.seagullAnimation.flock.length === 0) return;
         
-        const seagull = this.seagullAnimation;
         const flightHeight = 15; // Flying at moderate height above ground
         
+        // Render each bird in the flock
+        this.seagullAnimation.flock.forEach(bird => {
+            this.renderSingleSeagull(bird, flightHeight);
+        });
+    }
+      renderSingleSeagull(bird, flightHeight) {
         // Transform to screen coordinates
-        const seagullScreen = this.renderer.transformPoint(seagull.currentX, seagull.currentY, flightHeight);
+        const seagullScreen = this.renderer.transformPoint(bird.currentX, bird.currentY, flightHeight);
         
         this.renderer.ctx.save();
-        const size = seagull.size * this.renderer.scale;
+        const size = bird.size * this.renderer.scale;
         
-        // Calculate flight direction for proper bird orientation
-        const deltaX = this.seagullAnimation.endX - this.seagullAnimation.startX;
-        const deltaY = this.seagullAnimation.endY - this.seagullAnimation.startY;
-        const flightAngle = Math.atan2(deltaY, deltaX); // Angle of flight in radians        // Move to seagull position and rotate to face flight direction
+        // Calculate flight direction - ALL birds in V-formation face the same direction as the leader
+        let deltaX, deltaY;
+        if (this.seagullAnimation.formation === 'v-formation' && !bird.isLead) {
+            // V-formation birds use the LEADER'S flight direction, not their own
+            const leader = this.seagullAnimation.leadBird;
+            deltaX = leader.endX - leader.startX;
+            deltaY = leader.endY - leader.startY;
+        } else {
+            // Lead bird and non-V formations use their own flight direction
+            deltaX = bird.endX - bird.startX;
+            deltaY = bird.endY - bird.startY;
+        }
+        
+        const flightAngle = Math.atan2(deltaY, deltaX); // Angle of flight in radians
+        
+        // Move to seagull position and rotate to face flight direction
         this.renderer.ctx.translate(seagullScreen.x, seagullScreen.y);
         
         // Check if this is a bottom-left-to-top-right flight (going up and right)
@@ -709,8 +823,10 @@ class GolfCourse {    constructor(renderer) {
             this.renderer.ctx.scale(-1, 1);
         }
         
-        this.renderer.ctx.rotate(flightAngle);// Simple animated seagull - classic bird silhouette with aperiodic wing flapping
-        const time = Date.now() * 0.006;
+        this.renderer.ctx.rotate(flightAngle);
+        
+        // Simple animated seagull - classic bird silhouette with aperiodic wing flapping
+        const time = Date.now() * 0.006 + bird.wingOffset; // Add bird-specific wing offset
         
         // Create aperiodic wing flapping using multiple frequencies and phase offsets
         const baseFlap = Math.sin(time) * 0.4;
@@ -728,7 +844,9 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.strokeStyle = '#ffffff';
         this.renderer.ctx.fillStyle = '#ffffff';
         this.renderer.ctx.lineWidth = size * 0.15;
-        this.renderer.ctx.lineCap = 'round';        // Draw simple seagull body (small oval)
+        this.renderer.ctx.lineCap = 'round';
+        
+        // Draw simple seagull body (small oval)
         this.renderer.ctx.beginPath();
         this.renderer.ctx.ellipse(0, 0, size * 0.3, size * 0.1, 0, 0, Math.PI * 2);
         this.renderer.ctx.fill();
@@ -743,8 +861,7 @@ class GolfCourse {    constructor(renderer) {
         this.renderer.ctx.moveTo(size * 0.1, 0);
         this.renderer.ctx.lineTo(size * 0.6, -size * 0.3 + rightWingFlap * size * 0.25);
         this.renderer.ctx.stroke();
-        
-        this.renderer.ctx.restore();
+          this.renderer.ctx.restore();
     }
 
     startBallAnimation() {
