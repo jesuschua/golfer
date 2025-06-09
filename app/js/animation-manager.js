@@ -76,34 +76,24 @@ class AnimationManager {
         return false;
     }    // Terrain Animation Methods
     startTerrainAnimation(hole, onComplete = null) {
-        console.log('🌍 Starting terrain tile flip animation...');
-        console.log('📏 Hole dimensions:', hole.width, 'x', hole.height);
         this.terrainAnimation.start(() => {
-            console.log('✅ Terrain animation completed - starting element slide animation');
             this.startElementAnimation(hole, onComplete);
         });
     }
 
     updateTerrainAnimation(currentTime) {
         this.terrainAnimation.update(currentTime);
-    }
-
-    // Element Animation Methods  
+    }    // Element Animation Methods  
     startElementAnimation(hole, onComplete = null) {
-        console.log('🌟 Starting element slide-from-above animation...');
         this.elementAnimation.start(hole, () => {
-            console.log('✅ Element slide animation completed');
             if (onComplete) onComplete();
         });
     }
 
     updateElementAnimation(currentTime) {
         this.elementAnimation.update(currentTime);
-    }
-
-    // Fade-out Animation Methods
+    }    // Fade-out Animation Methods
     startFadeOutAnimation(hole, onComplete = null) {
-        console.log('🎭 Starting element fade-out animation...');
         this.fadeOutAnimation.start(hole, onComplete);
     }
 
@@ -137,13 +127,9 @@ class AnimationManager {
         
         // Use element slide offset
         return this.elementAnimation.getElementSlideOffset(elementKey);
-    }
-
-    // Seagull Animation Methods
+    }    // Seagull Animation Methods
     startSeagullAnimation(hole) {
         if (!hole) return;
-        
-        console.log('🐦 Starting seagull flock animation...');
         
         this.seagullAnimation.active = true;
         this.seagullAnimation.startTime = Date.now();
@@ -167,10 +153,7 @@ class AnimationManager {
                 this.seagullAnimation.formation = 'line';
             } else {
                 this.seagullAnimation.formation = 'loose';
-            }
-        }
-        
-        console.log(`🐦 Created flock of ${this.seagullAnimation.flockSize} birds in ${this.seagullAnimation.formation} formation`);
+            }        }
         
         // Set flight path across the terrain
         const margin = 20; // Off-screen margin
@@ -224,13 +207,10 @@ class AnimationManager {
         ];
         
         // Randomly select a flight pattern for the lead bird
-        const selectedPattern = flightPatterns[Math.floor(Math.random() * flightPatterns.length)];
-        
+        const selectedPattern = flightPatterns[Math.floor(Math.random() * flightPatterns.length)];        
         // Create the flock
         this.seagullAnimation.flock = [];
         this.createFlock(selectedPattern);
-        
-        console.log(`🐦 Created flock of ${this.seagullAnimation.flockSize} birds in ${this.seagullAnimation.formation} formation: ${selectedPattern.name}`);
     }
 
     createFlock(leadPattern) {
@@ -397,8 +377,6 @@ class TerrainAnimation extends BaseAnimation {    constructor() {
     }    start(onComplete = null) {
         super.start(onComplete);
         this.tiles.clear();
-        console.log('🌍 TerrainAnimation.start() called - animation active:', this.active);
-        console.log('⏱️ Animation duration:', this.duration, 'ms, tile duration:', this.individualFlipDuration, 'ms');
     }
 
     onUpdate(progress, elapsed) {
@@ -444,13 +422,9 @@ class ElementAnimation extends BaseAnimation {
         this.individualSlideDuration = 800;
         this.elements = new Map();
         this.slideDistance = 60;
-    }
-
-    start(hole, onComplete = null) {
+    }    start(hole, onComplete = null) {
         super.start(onComplete);
         this.elements.clear();
-        
-        console.log('🌟 Starting element slide-from-above animation...');
         
         // Register all course elements with staggered start times
         const elementTypes = [
@@ -521,13 +495,9 @@ class FadeOutAnimation extends BaseAnimation {
         this.individualFadeDuration = 600;
         this.elements = new Map();
         this.slideDistance = 60;
-    }
-
-    start(hole, onComplete = null) {
+    }    start(hole, onComplete = null) {
         super.start(onComplete);
         this.elements.clear();
-        
-        console.log('🎭 Starting element fade-out animation...');
         
         // Register all current course elements
         const elementTypes = [

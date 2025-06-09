@@ -18,10 +18,8 @@ class GolfCourse {
     }    generateNewHole() {
         // If there's an existing hole, start fade-out animation first
         if (this.currentHole && !this.animationManager.fadeOutAnimation.active) {
-            console.log('🎭 Starting fade-out animation before generating new hole...');
             this.animationManager.startFadeOutAnimation(this.currentHole, () => {
                 // Callback executed when fade-out is complete
-                console.log('✅ Fade-out complete, now generating new hole content');
                 this._generateNewHoleContent();
             });
             return; // Exit early, _generateNewHoleContent will be called via callback
@@ -29,7 +27,7 @@ class GolfCourse {
         
         // If no existing hole or fade-out already active, generate directly
         this._generateNewHoleContent();
-    }    _generateNewHoleContent() {
+    }_generateNewHoleContent() {
         // Clean up any existing elements
         this._cleanup();
         
@@ -45,12 +43,9 @@ class GolfCourse {
             this.startBallAnimation();
         });
         this.animationManager.startSeagullAnimation(this.currentHole);
-    }
-
-    _cleanup() {
+    }    _cleanup() {
         // Clean up any existing balls from the previous course
         if (this.golfBall) {
-            console.log('🧹 Cleaning up existing ball for fresh course generation');
             this.golfBall = null;
         }
 
@@ -207,27 +202,22 @@ class GolfCourse {
         }    }startBallAnimation() {
         // Delegate ball animation creation to PhysicsEngine
         if (!this.currentHole) return;
-        
-        // Check if a ball is actually still flying
+          // Check if a ball is actually still flying
         if (this.physicsEngine.isBallFlying(this.golfBall, this.ballAnimation)) {
-            console.log('🚫 Ball is still flying, skipping new animation');
             return;
         }
         
         // Get playable targets from course
         const playableTargets = this.getPlayableTargets();
         if (playableTargets.length === 0) {
-            console.log('⚠️ No playable targets found');
             return;
         }
         
         // Let PhysicsEngine create the ball animation with target selection
         const result = this.physicsEngine.createBallAnimationWithTargets(playableTargets, this.currentHole);
-        
-        if (result) {
+          if (result) {
             this.ballAnimation = result.animation;
             this.golfBall = result.ball;
-            console.log(`🎯 Ball animation started targeting ${result.targetType}`);
         }
     }getPlayableTargets() {
         // Collect all actual terrain grid squares AND course features that the ball can land on
@@ -335,16 +325,9 @@ class GolfCourse {
             target.x >= 5 && target.x <= hole.width - 5 &&
             target.y >= 5 && target.y <= hole.height - 5
         );
-        
-        // Count terrain grid squares vs other targets
+          // Count terrain grid squares vs other targets
         const terrainTargets = validTargets.filter(t => t.type.startsWith('terrain-grid'));
         const featureTargets = validTargets.filter(t => !t.type.startsWith('terrain-grid'));
-        
-        console.log(`🎯 Generated ${validTargets.length} total targets: ${terrainTargets.length} terrain squares + ${featureTargets.length} course features`);
-        console.log('Target types:', validTargets.map(t => t.type.split('-')[0]).reduce((acc, type) => {
-            acc[type] = (acc[type] || 0) + 1;
-            return acc;
-        }, {}));
           return validTargets;
     }    identifyHitFeature(x, y) {
         // Check what specific course feature the ball landed on
@@ -413,10 +396,9 @@ class GolfCourse {
         // Delegate ball physics update to PhysicsEngine
         if (this.ballAnimation && this.golfBall) {
             const result = this.physicsEngine.updateBallPhysics(this.ballAnimation, this.golfBall, this.currentHole);
-            
-            // Handle special physics results if needed
+              // Handle special physics results if needed
             if (!result.shouldContinue && result.result) {
-                console.log(`🎯 Physics result: ${result.result.type}`);
+                // Physics result received
             }
         }
     }

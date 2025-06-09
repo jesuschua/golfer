@@ -92,11 +92,9 @@ class GolfScreensaver {
             cancelAnimationFrame(this.animationId);
             this.animationId = null;
         }
-    }    autoRegenerate() {
-        // Generate a new hole every 30 seconds for dynamic screensaver viewing
+    }    autoRegenerate() {        // Generate a new hole every 30 seconds for dynamic screensaver viewing
         setInterval(() => {
             this.golfCourse.generateNewHole();
-            console.log('🔄 Auto-generated new hole for screensaver');
         }, 30000); // 30 seconds = 30,000ms
     }    toggleFullscreen() {
         if (!document.fullscreenElement) {

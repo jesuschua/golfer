@@ -32,16 +32,8 @@ class CourseRenderer {
         
         this.clearQueue();
     }    renderTerrain(hole, terrainAnimation, courseGenerator) {
-        this.queueRender(() => {
-            const gridSize = 8;
+        this.queueRender(() => {            const gridSize = 8;
             const now = Date.now();
-            
-            // Debug: Log terrain animation state (only once per render cycle)
-            if (!this._terrainDebugLogged) {
-                console.log('🖼️ Rendering terrain - animation active:', terrainAnimation.active);
-                this._terrainDebugLogged = true;
-                setTimeout(() => { this._terrainDebugLogged = false; }, 100); // Reset after 100ms
-            }
             
             for (let x = 0; x < hole.width; x += gridSize) {
                 for (let y = 0; y < hole.height; y += gridSize) {
@@ -52,17 +44,10 @@ class CourseRenderer {
                         { x: x + gridSize, y: y, z: courseGenerator.getElevation(x + gridSize, y) },
                         { x: x + gridSize, y: y + gridSize, z: courseGenerator.getElevation(x + gridSize, y + gridSize) },
                         { x: x, y: y + gridSize, z: courseGenerator.getElevation(x, y + gridSize) }
-                    ];                    let grassColor = getBaseGreen();
-                      if (terrainAnimation.active) {
+                    ];                    let grassColor = getBaseGreen();                    if (terrainAnimation.active) {
                         const tileX = Math.floor(x / gridSize);
                         const tileY = Math.floor(y / gridSize);
                         const flipProgress = terrainAnimation.getTileFlipProgress(tileX, tileY);
-                        
-                        // Debug: Make it super obvious when animation is running
-                        if (flipProgress > 0 && flipProgress < 1) {
-                            // During animation, make tiles bright red so we can see them
-                            grassColor = '#FF0000';
-                        }
                         
                         if (flipProgress < 1) {
                             // Create 3D tile spinning effect
@@ -344,14 +329,12 @@ class CourseRenderer {
             
             this.renderer.ctx.restore();
         }, 8);
+    }    renderHoleInOneCelebration() {
+        // Placeholder for celebration effect
     }
 
-    renderHoleInOneCelebration() {
-        // Placeholder for celebration effect
-        console.log('🎉 HOLE IN ONE CELEBRATION!');
-    }    renderWaterSplashEffect() {
+    renderWaterSplashEffect() {
         // Placeholder for splash effect
-        console.log('💦 SPLASH EFFECT!');
     }
 
     renderSeagulls(animationManager) {

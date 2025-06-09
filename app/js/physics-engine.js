@@ -100,17 +100,13 @@ class PhysicsEngine {
         // Check for special collision detection while ball is in flight
         if (!ballAnimation.isDisappearing && !ballAnimation.isTrapped) {
             const currentFeature = this.identifyHitFeature(ball.x, ball.y, hole);
-            
-            // Check for hole collision
+              // Check for hole collision
             if (currentFeature.type === 'hole') {
-                console.log(`🕳️ INCREDIBLE! Ball flew into the hole at height ${ball.z.toFixed(1)}!`);
                 ballAnimation.holeInOne = true;
                 return { shouldStop: true, type: 'hole-in-one' };
             }
-            
-            // Check for water collision
+              // Check for water collision
             if (currentFeature.type === 'water' && ball.z <= 2) {
-                console.log(`💦 SPLASH! Ball landed in water hazard!`);
                 ballAnimation.waterHazard = true;
                 return { shouldStop: true, type: 'water-hazard' };
             }
@@ -122,9 +118,7 @@ class PhysicsEngine {
                 ball.x >= 0 && ball.x <= hole.width &&
                 ball.y >= 0 && ball.y <= hole.height
             );
-            
-            if (!onTerrain) {
-                console.log(`🚫 Ball passed ground level outside terrain - continuing to fall...`);
+              if (!onTerrain) {
                 return { shouldStop: false };
             } else {
                 ballAnimation.lastGroundTime = currentTime;
@@ -139,17 +133,13 @@ class PhysicsEngine {
 
     handleGroundCollision(ball, ballAnimation, hole) {
         const hitFeature = this.identifyHitFeature(ball.x, ball.y, hole);
-        
-        if (hitFeature.type === 'hole') {
-            console.log(`🕳️ HOLE IN ONE! Ball sank into the hole!`);
+          if (hitFeature.type === 'hole') {
             ballAnimation.holeInOne = true;
             return { shouldStop: true, type: 'hole-in-one' };
         } else if (hitFeature.type === 'water') {
-            console.log(`💦 WATER HAZARD! Ball sinks and disappears`);
             ballAnimation.waterHazard = true;
             return { shouldStop: true, type: 'water-hazard' };
         } else if (hitFeature.type === 'bunker') {
-            console.log(`⛳ Ball trapped in bunker - stops rolling`);
             ballAnimation.velocity.x = 0;
             ballAnimation.velocity.y = 0;
             ballAnimation.velocity.z = 0;
@@ -176,9 +166,7 @@ class PhysicsEngine {
                 ballAnimation.velocity.y ** 2 + 
                 ballAnimation.velocity.z ** 2
             );
-            
-            if (totalVelocity < 5) {
-                console.log('🎱 Ball transition to rolling mode');
+              if (totalVelocity < 5) {
                 ballAnimation.velocity.z = 0;
                 ballAnimation.isRolling = true;
             }
@@ -337,9 +325,7 @@ class PhysicsEngine {
             z: ballAnimation.startPos.z,
             radius: 0.2
         };
-        
-        console.log(`🎯 Ball targeted to ${targetFeature.type} at (${targetX.toFixed(1)}, ${targetY.toFixed(1)})`);
-        
+          
         return {
             animation: ballAnimation,
             ball: ball,
@@ -349,7 +335,6 @@ class PhysicsEngine {
 
     stopBallAnimation() {
         // Stop any active ball animation
-        console.log('🛑 PhysicsEngine stopping ball animation');
     }
 
     // Utility methods
