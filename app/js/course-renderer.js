@@ -31,12 +31,17 @@ class CourseRenderer {
         });
         
         this.clearQueue();
-    }
-
-    renderTerrain(hole, terrainAnimation, courseGenerator) {
+    }    renderTerrain(hole, terrainAnimation, courseGenerator) {
         this.queueRender(() => {
             const gridSize = 8;
             const now = Date.now();
+            
+            // Debug: Log terrain animation state (only once per render cycle)
+            if (!this._terrainDebugLogged) {
+                console.log('🖼️ Rendering terrain - animation active:', terrainAnimation.active);
+                this._terrainDebugLogged = true;
+                setTimeout(() => { this._terrainDebugLogged = false; }, 100); // Reset after 100ms
+            }
             
             for (let x = 0; x < hole.width; x += gridSize) {
                 for (let y = 0; y < hole.height; y += gridSize) {
@@ -47,23 +52,28 @@ class CourseRenderer {
                         { x: x + gridSize, y: y, z: courseGenerator.getElevation(x + gridSize, y) },
                         { x: x + gridSize, y: y + gridSize, z: courseGenerator.getElevation(x + gridSize, y + gridSize) },
                         { x: x, y: y + gridSize, z: courseGenerator.getElevation(x, y + gridSize) }
-                    ];
-
-                    let grassColor = getBaseGreen();
-                    
-                    if (terrainAnimation.active) {
+                    ];                    let grassColor = getBaseGreen();
+                      if (terrainAnimation.active) {
                         const tileX = Math.floor(x / gridSize);
                         const tileY = Math.floor(y / gridSize);
                         const flipProgress = terrainAnimation.getTileFlipProgress(tileX, tileY);
                         
-                        if (flipProgress < 1) {
-                            // During flip animation, show brown "back" of tile
-                            const brownAmount = Math.sin(flipProgress * Math.PI);
-                            grassColor = this.interpolateColor('#8B4513', grassColor, brownAmount);
+                        // Debug: Make it super obvious when animation is running
+                        if (flipProgress > 0 && flipProgress < 1) {
+                            // During animation, make tiles bright red so we can see them
+                            grassColor = '#FF0000';
                         }
+                        
+                        if (flipProgress < 1) {
+                            // Create 3D tile spinning effect
+                            const tileData = terrainAnimation.tiles.get(`${tileX}-${tileY}`);
+                            this.renderSpinningTile(points, flipProgress, gridSize, tileData);
+                        } else {
+                            this.renderer.drawPolygon(points, grassColor, null, 0);
+                        }
+                    } else {
+                        this.renderer.drawPolygon(points, grassColor, null, 0);
                     }
-                    
-                    this.renderer.drawPolygon(points, grassColor, null, 0);
                 }
             }
         }, 0); // Terrain renders first (lowest z-index)
@@ -437,6 +447,87 @@ class CourseRenderer {
         this.renderer.ctx.stroke();
         
         this.renderer.ctx.restore();
+    }    renderSpinningTile(originalPoints, flipProgress, gridSize, tileData = {}) {
+        // Create spinning/flipping tile effect with 3D rotation
+        const rotationAxis = tileData.rotationAxis || 'x';
+        const clockwise = tileData.clockwise !== undefined ? tileData.clockwise : true;
+        const spinAngle = flipProgress * Math.PI * (clockwise ? 1 : -1); // 180-degree flip
+        
+        // Calculate tile center for rotation
+        const centerX = (originalPoints[0].x + originalPoints[2].x) / 2;
+        const centerY = (originalPoints[0].y + originalPoints[2].y) / 2;
+        const centerZ = (originalPoints[0].z + originalPoints[1].z + originalPoints[2].z + originalPoints[3].z) / 4;
+        
+        // Create rotation around specified axis
+        const points = originalPoints.map(point => {
+            if (rotationAxis === 'x') {
+                // Rotate around X-axis (horizontal flip)
+                let localY = point.y - centerY;
+                let localZ = point.z - centerZ;
+                
+                const rotatedY = localY * Math.cos(spinAngle) - localZ * Math.sin(spinAngle);
+                const rotatedZ = localY * Math.sin(spinAngle) + localZ * Math.cos(spinAngle);
+                
+                return {
+                    x: point.x,
+                    y: centerY + rotatedY,
+                    z: centerZ + rotatedZ
+                };
+            } else {
+                // Rotate around Y-axis (vertical flip)
+                let localX = point.x - centerX;
+                let localZ = point.z - centerZ;
+                
+                const rotatedX = localX * Math.cos(spinAngle) + localZ * Math.sin(spinAngle);
+                const rotatedZ = -localX * Math.sin(spinAngle) + localZ * Math.cos(spinAngle);
+                
+                return {
+                    x: centerX + rotatedX,
+                    y: point.y,
+                    z: centerZ + rotatedZ
+                };
+            }
+        });
+        
+        // Determine colors based on flip progress
+        const grassColor = getBaseGreen();
+        const backColor = '#8B4513'; // Brown back of tile
+        
+        // First half of spin shows the brown "back" of the tile
+        // Second half shows the green "front" of the tile
+        let currentColor;
+        if (flipProgress < 0.5) {
+            // Fading from grass to brown (tile flipping away)
+            const fadeAmount = flipProgress * 2; // 0 to 1 in first half
+            currentColor = this.interpolateColor(grassColor, backColor, fadeAmount);
+        } else {
+            // Fading from brown to grass (tile flipping back)
+            const fadeAmount = (flipProgress - 0.5) * 2; // 0 to 1 in second half
+            currentColor = this.interpolateColor(backColor, grassColor, fadeAmount);
+        }
+        
+        // Add scale effect to simulate perspective during flip
+        const scaleAmount = Math.abs(Math.cos(spinAngle));
+        if (scaleAmount > 0.1) { // Only render if tile is somewhat visible
+            // Scale the tile to simulate perspective
+            const scaledPoints = points.map(point => {
+                if (rotationAxis === 'x') {
+                    return {
+                        x: point.x,
+                        y: centerY + (point.y - centerY) * scaleAmount,
+                        z: point.z
+                    };
+                } else {
+                    return {
+                        x: centerX + (point.x - centerX) * scaleAmount,
+                        y: point.y,
+                        z: point.z
+                    };
+                }
+            });
+            
+            this.renderer.drawPolygon(scaledPoints, currentColor, null, 0);
+        }
     }
 
     // Utility method to interpolate between colors

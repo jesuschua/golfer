@@ -449,9 +449,8 @@ class GolfCourse {
 
         // Render all elements through CourseRenderer with proper z-ordering
         this.courseRenderer.clearQueue();
-        
-        // Queue all render operations 
-        this.courseRenderer.renderTerrain(this.currentHole, this.animationManager, this.courseGenerator);
+          // Queue all render operations 
+        this.courseRenderer.renderTerrain(this.currentHole, this.animationManager.terrainAnimation, this.courseGenerator);
         this.courseRenderer.renderWater(this.currentHole, this.animationManager);
         this.courseRenderer.renderFairway(this.currentHole, this.animationManager);
         this.courseRenderer.renderBunkers(this.currentHole, this.animationManager);

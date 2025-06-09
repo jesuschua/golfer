@@ -74,11 +74,10 @@ class AnimationManager {
             if (animation.active) return true;
         }
         return false;
-    }
-
-    // Terrain Animation Methods
+    }    // Terrain Animation Methods
     startTerrainAnimation(hole, onComplete = null) {
         console.log('🌍 Starting terrain tile flip animation...');
+        console.log('📏 Hole dimensions:', hole.width, 'x', hole.height);
         this.terrainAnimation.start(() => {
             console.log('✅ Terrain animation completed - starting element slide animation');
             this.startElementAnimation(hole, onComplete);
@@ -390,18 +389,16 @@ class BaseAnimation {
 }
 
 // Terrain tile flip animation
-class TerrainAnimation extends BaseAnimation {
-    constructor() {
-        super(2000); // 2 seconds total duration
-        this.individualFlipDuration = 600;
+class TerrainAnimation extends BaseAnimation {    constructor() {
+        super(3000); // 3 seconds total duration for more dramatic effect
+        this.individualFlipDuration = 800; // 0.8 seconds per tile
         this.tiles = new Map();
         this.gridSize = 8;
-    }
-
-    start(onComplete = null) {
+    }    start(onComplete = null) {
         super.start(onComplete);
         this.tiles.clear();
-        console.log('🌍 Starting terrain tile flip animation...');
+        console.log('🌍 TerrainAnimation.start() called - animation active:', this.active);
+        console.log('⏱️ Animation duration:', this.duration, 'ms, tile duration:', this.individualFlipDuration, 'ms');
     }
 
     onUpdate(progress, elapsed) {
@@ -411,22 +408,32 @@ class TerrainAnimation extends BaseAnimation {
 
     getTileFlipProgress(tileX, tileY) {
         const tileKey = `${tileX}-${tileY}`;
-        
-        if (!this.tiles.has(tileKey)) {
+          if (!this.tiles.has(tileKey)) {
             // Generate random start time for this tile within the animation window
             const maxDelay = this.duration - this.individualFlipDuration;
             const tileStartTime = this.startTime + Math.random() * maxDelay;
-            this.tiles.set(tileKey, { startTime: tileStartTime });
+            const rotationAxis = Math.random() > 0.5 ? 'x' : 'y'; // Random rotation axis
+            this.tiles.set(tileKey, { 
+                startTime: tileStartTime,
+                rotationAxis: rotationAxis,
+                clockwise: Math.random() > 0.5 // Random rotation direction
+            });
         }
         
         const tileData = this.tiles.get(tileKey);
         const now = Date.now();
         const tileElapsed = now - tileData.startTime;
-        
-        if (tileElapsed < 0) return 0; // Not started yet
+          if (tileElapsed < 0) return 0; // Not started yet
         if (tileElapsed >= this.individualFlipDuration) return 1; // Complete
         
-        return tileElapsed / this.individualFlipDuration;
+        // Apply easing for more natural spinning motion
+        const rawProgress = tileElapsed / this.individualFlipDuration;
+        return this.easeInOutCubic(rawProgress);
+    }
+    
+    // Smooth easing function for natural tile spinning
+    easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     }
 }
 
