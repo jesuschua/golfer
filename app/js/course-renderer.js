@@ -263,11 +263,10 @@ class CourseRenderer {
                     return;                } else if (ballAnimation.waterHazard && ballAnimation.effectStartTime && 
                            (now - ballAnimation.effectStartTime) < effectDuration) {
                     this.renderWaterSplashEffect(ballAnimation, ballScreen);
-                    return;
-                } else if (ballAnimation.bunkerHit && ballAnimation.effectStartTime && 
+                    return;                } else if (ballAnimation.bunkerHit && ballAnimation.effectStartTime && 
                            (now - ballAnimation.effectStartTime) < effectDuration) {
                     this.renderBunkerSplashEffect(ballAnimation, ballScreen);
-                    return;
+                    // Don't return - continue to render the ball below
                 }
             }
             

@@ -127,9 +127,7 @@ class CourseGenerator {
     }    generateHazards(hole) {
         // Minimal hazards for serene aesthetic
         const numBunkers = this.randomInt(0, 2);
-        const numWater = this.random(0, 1) > 0.8 ? 1 : 0;
-
-        // Generate sand bunkers
+        const numWater = this.random(0, 1) > 0.8 ? 1 : 0;        // Generate sand bunkers
         for (let i = 0; i < numBunkers; i++) {
             hole.bunkers.push({
                 x: this.random(20, hole.width - 20),

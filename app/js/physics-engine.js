@@ -85,14 +85,15 @@ class PhysicsEngine {
         // Update position
         ball.x += ballAnimation.velocity.x * deltaTime;
         ball.y += ballAnimation.velocity.y * deltaTime;
-        ball.z += ballAnimation.velocity.z * deltaTime;
-
-        // Check for collisions and special events
+        ball.z += ballAnimation.velocity.z * deltaTime;        // Check for collisions and special events
         const collisionResult = this.checkCollisions(ball, ballAnimation, hole, now);
         
         if (collisionResult.shouldStop) {
             ballAnimation.active = false;
-            ballAnimation.isDisappearing = true;
+            // Only mark as disappearing for non-bunker collisions
+            if (collisionResult.type !== 'bunker') {
+                ballAnimation.isDisappearing = true;
+            }
             return { shouldContinue: false, result: collisionResult };
         }
 
@@ -144,17 +145,20 @@ class PhysicsEngine {
           if (hitFeature.type === 'hole') {
             ballAnimation.holeInOne = true;
             ballAnimation.effectStartTime = Date.now();
-            return { shouldStop: true, type: 'hole-in-one' };        } else if (hitFeature.type === 'water') {
+            return { shouldStop: true, type: 'hole-in-one' };
+        } else if (hitFeature.type === 'water') {
             ballAnimation.waterHazard = true;
             ballAnimation.effectStartTime = Date.now();
-            return { shouldStop: true, type: 'water-hazard' };
-        } else if (hitFeature.type === 'bunker') {            ballAnimation.velocity.x = 0;
+            return { shouldStop: true, type: 'water-hazard' };        } else if (hitFeature.type === 'bunker') {
+            ballAnimation.velocity.x = 0;
             ballAnimation.velocity.y = 0;
-            ballAnimation.velocity.z = 0;            ballAnimation.isRolling = true;
+            ballAnimation.velocity.z = 0;
+            ballAnimation.isRolling = false; // Ball is trapped, not rolling
             ballAnimation.isTrapped = true;
             ballAnimation.hitGreen = false;
             ballAnimation.bunkerHit = true;
             ballAnimation.effectStartTime = Date.now();
+            return { shouldStop: true, type: 'bunker' }; // Stop animation but keep ball visible
         } else {
             // Handle bouncing
             this.handleBounce(ballAnimation, hitFeature);
@@ -185,9 +189,12 @@ class PhysicsEngine {
             ballAnimation.velocity.z = 0;
             ballAnimation.isRolling = true;
         }
-    }
-
-    shouldBallDisappear(ballAnimation, ball, currentTime) {
+    }    shouldBallDisappear(ballAnimation, ball, currentTime) {
+        // Trapped balls (in bunkers) should never disappear
+        if (ballAnimation.isTrapped) {
+            return false;
+        }
+        
         // Check if ball has been at rest for too long
         const velocity = Math.sqrt(
             ballAnimation.velocity.x ** 2 + 
