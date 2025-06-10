@@ -253,19 +253,20 @@ class CourseRenderer {
         this.queueRender(() => {
             const now = Date.now();
             const effectDuration = 3000; // Show effects for 3 seconds
-            
-            // Handle special effects (show for a duration after they start)
+              // Handle special effects (show for a duration after they start)
             if (ballAnimation) {
+                const ballScreen = this.renderer.transformPoint(ball.x, ball.y, ball.z || 0);
+                
                 if (ballAnimation.holeInOne && ballAnimation.effectStartTime && 
                     (now - ballAnimation.effectStartTime) < effectDuration) {
-                    this.renderHoleInOneCelebration(ballAnimation);
+                    this.renderHoleInOneCelebration(ballAnimation, ballScreen);
                     return;                } else if (ballAnimation.waterHazard && ballAnimation.effectStartTime && 
                            (now - ballAnimation.effectStartTime) < effectDuration) {
-                    this.renderWaterSplashEffect(ballAnimation);
+                    this.renderWaterSplashEffect(ballAnimation, ballScreen);
                     return;
                 } else if (ballAnimation.bunkerHit && ballAnimation.effectStartTime && 
                            (now - ballAnimation.effectStartTime) < effectDuration) {
-                    this.renderBunkerSplashEffect(ballAnimation);
+                    this.renderBunkerSplashEffect(ballAnimation, ballScreen);
                     return;
                 }
             }
@@ -337,7 +338,7 @@ class CourseRenderer {
             this.renderer.ctx.fill();
             
             this.renderer.ctx.restore();
-        }, 8);    }    renderHoleInOneCelebration(ballAnimation) {
+        }, 8);    }    renderHoleInOneCelebration(ballAnimation, ballScreen) {
         // Create a celebration effect with sparkles and text
         const currentTime = Date.now();
         const elapsed = currentTime - ballAnimation.effectStartTime;
@@ -346,12 +347,12 @@ class CourseRenderer {
         
         this.renderer.ctx.save();
         
-        // Draw sparkles around the screen
+        // Draw sparkles around the ball position
         for (let i = 0; i < sparkleCount; i++) {
             const angle = (i / sparkleCount) * Math.PI * 2;
             const radius = 50 + Math.sin(currentTime * 0.01 + i) * 20;
-            const sparkleX = this.renderer.centerX + Math.cos(angle) * radius;
-            const sparkleY = this.renderer.centerY + Math.sin(angle) * radius;
+            const sparkleX = ballScreen.x + Math.cos(angle) * radius;
+            const sparkleY = ballScreen.y + Math.sin(angle) * radius;
             
             const sparkleSize = (2 + Math.sin(currentTime * 0.02 + i) * 1) * (1 - progress * 0.5);
             
@@ -361,20 +362,8 @@ class CourseRenderer {
             this.renderer.ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
             this.renderer.ctx.fill();
         }
-        
-        // Draw celebration text
-        const textAlpha = Math.max(0, 1 - progress);
-        this.renderer.ctx.globalAlpha = textAlpha;
-        this.renderer.ctx.fillStyle = '#FFD700';
-        this.renderer.ctx.font = 'bold 24px Arial';
-        this.renderer.ctx.textAlign = 'center';
-        this.renderer.ctx.strokeStyle = '#FF8C00';
-        this.renderer.ctx.lineWidth = 2;
-        this.renderer.ctx.strokeText('HOLE IN ONE!', this.renderer.centerX, this.renderer.centerY - 20);        this.renderer.ctx.fillText('HOLE IN ONE!', this.renderer.centerX, this.renderer.centerY - 20);
           this.renderer.ctx.restore();
-    }
-
-    renderWaterSplashEffect(ballAnimation) {
+    }    renderWaterSplashEffect(ballAnimation, ballScreen) {
         if (!ballAnimation || !ballAnimation.effectStartTime) return;
         
         const currentTime = Date.now();
@@ -384,15 +373,15 @@ class CourseRenderer {
         
         this.renderer.ctx.save();
         
-        // Create multiple water droplets
+        // Create multiple water droplets around the ball position
         const dropletCount = 20;
         for (let i = 0; i < dropletCount; i++) {
             const angle = (i / dropletCount) * Math.PI * 2;
             const baseRadius = 30;
             const animatedRadius = baseRadius * (1 + progress * 2);
             
-            const dropletX = this.renderer.centerX + Math.cos(angle) * animatedRadius;
-            const dropletY = this.renderer.centerY + Math.sin(angle) * animatedRadius * 0.7; // Flatten for isometric
+            const dropletX = ballScreen.x + Math.cos(angle) * animatedRadius;
+            const dropletY = ballScreen.y + Math.sin(angle) * animatedRadius * 0.7; // Flatten for isometric
             
             // Make droplets fade out as they expand
             const alpha = Math.max(0, 1 - progress);
@@ -405,7 +394,7 @@ class CourseRenderer {
             this.renderer.ctx.fill();
         }
         
-        // Create concentric water ripples
+        // Create concentric water ripples around the ball position
         for (let ring = 0; ring < 3; ring++) {
             const ringRadius = (20 + ring * 15) * (1 + progress);
             const ringAlpha = Math.max(0, 0.3 - progress - ring * 0.1);
@@ -415,28 +404,16 @@ class CourseRenderer {
             this.renderer.ctx.lineWidth = 2;
             this.renderer.ctx.beginPath();
             this.renderer.ctx.ellipse(
-                this.renderer.centerX, 
-                this.renderer.centerY, 
+                ballScreen.x, 
+                ballScreen.y, 
                 ringRadius, 
                 ringRadius * 0.5, // Flatten for isometric view
                 0, 0, Math.PI * 2
             );
-            this.renderer.ctx.stroke();
-        }
-        
-        // Add splash text
-        if (progress < 0.5) {
-            this.renderer.ctx.globalAlpha = 1 - progress * 2;
-            this.renderer.ctx.fillStyle = '#4682B4';
-            this.renderer.ctx.font = 'bold 18px Arial';
-            this.renderer.ctx.textAlign = 'center';
-            this.renderer.ctx.fillText('SPLASH!', this.renderer.centerX, this.renderer.centerY - 40);
-        }
+            this.renderer.ctx.stroke();        }
         
         this.renderer.ctx.restore();
-    }
-
-    renderBunkerSplashEffect(ballAnimation) {
+    }    renderBunkerSplashEffect(ballAnimation, ballScreen) {
         if (!ballAnimation || !ballAnimation.effectStartTime) return;
         
         const currentTime = Date.now();
@@ -446,15 +423,15 @@ class CourseRenderer {
         
         this.renderer.ctx.save();
         
-        // Create sand particles flying outward
+        // Create sand particles flying outward from the ball position
         const sandParticleCount = 25;
         for (let i = 0; i < sandParticleCount; i++) {
             const angle = (i / sandParticleCount) * Math.PI * 2;
             const baseRadius = 25;
             const animatedRadius = baseRadius * (1 + progress * 1.5);
             
-            const particleX = this.renderer.centerX + Math.cos(angle) * animatedRadius;
-            const particleY = this.renderer.centerY + Math.sin(angle) * animatedRadius * 0.6; // Flatten for isometric
+            const particleX = ballScreen.x + Math.cos(angle) * animatedRadius;
+            const particleY = ballScreen.y + Math.sin(angle) * animatedRadius * 0.6; // Flatten for isometric
             
             // Make particles fall as they expand
             const fallOffset = progress * progress * 20; // Quadratic fall for gravity effect
@@ -475,7 +452,7 @@ class CourseRenderer {
             this.renderer.ctx.fill();
         }
         
-        // Add sand dust cloud effect
+        // Add sand dust cloud effect around the ball position
         if (progress < 0.7) {
             const dustRadius = 40 * (1 + progress * 2);
             const dustAlpha = Math.max(0, 0.2 - progress * 0.3);
@@ -484,26 +461,13 @@ class CourseRenderer {
             this.renderer.ctx.fillStyle = '#DEB887';
             this.renderer.ctx.beginPath();
             this.renderer.ctx.ellipse(
-                this.renderer.centerX, 
-                this.renderer.centerY, 
+                ballScreen.x, 
+                ballScreen.y, 
                 dustRadius, 
                 dustRadius * 0.4, // Flatten for isometric view
                 0, 0, Math.PI * 2
             );
-            this.renderer.ctx.fill();
-        }
-        
-        // Add bunker text
-        if (progress < 0.6) {
-            this.renderer.ctx.globalAlpha = Math.max(0, 1 - progress * 1.5);
-            this.renderer.ctx.fillStyle = '#8B4513'; // Brown color for sand
-            this.renderer.ctx.font = 'bold 16px Arial';
-            this.renderer.ctx.textAlign = 'center';
-            this.renderer.ctx.strokeStyle = '#A0522D';
-            this.renderer.ctx.lineWidth = 1;
-            this.renderer.ctx.strokeText('BUNKER!', this.renderer.centerX, this.renderer.centerY - 35);
-            this.renderer.ctx.fillText('BUNKER!', this.renderer.centerX, this.renderer.centerY - 35);
-        }
+            this.renderer.ctx.fill();        }
         
         this.renderer.ctx.restore();
     }
