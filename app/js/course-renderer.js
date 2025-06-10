@@ -247,23 +247,29 @@ class CourseRenderer {
             
             this.renderer.ctx.restore();
         }, 7);
-    }
-
-    renderBall(ball, ballAnimation, hole) {
+    }    renderBall(ball, ballAnimation, hole) {
         if (!ball) return;
         
         this.queueRender(() => {
-            // Handle special disappearing effects
-            if (ballAnimation && ballAnimation.isDisappearing) {
-                if (ballAnimation.holeInOne) {
-                    this.renderHoleInOneCelebration();
+            const now = Date.now();
+            const effectDuration = 3000; // Show effects for 3 seconds
+            
+            // Handle special effects (show for a duration after they start)
+            if (ballAnimation) {
+                if (ballAnimation.holeInOne && ballAnimation.effectStartTime && 
+                    (now - ballAnimation.effectStartTime) < effectDuration) {
+                    this.renderHoleInOneCelebration(ballAnimation);
                     return;
-                } else if (ballAnimation.waterHazard) {
-                    this.renderWaterSplashEffect();
+                } else if (ballAnimation.waterHazard && ballAnimation.effectStartTime && 
+                           (now - ballAnimation.effectStartTime) < effectDuration) {
+                    this.renderWaterSplashEffect(ballAnimation);
                     return;
-                } else {
-                    return; // Ball faded away naturally
                 }
+            }
+            
+            // Handle regular disappearing state
+            if (ballAnimation && ballAnimation.isDisappearing) {
+                return; // Ball faded away naturally
             }
             
             // Don't render if out of bounds and fallen too far
@@ -328,13 +334,103 @@ class CourseRenderer {
             this.renderer.ctx.fill();
             
             this.renderer.ctx.restore();
-        }, 8);
-    }    renderHoleInOneCelebration() {
-        // Placeholder for celebration effect
+        }, 8);    }    renderHoleInOneCelebration(ballAnimation) {
+        // Create a celebration effect with sparkles and text
+        const currentTime = Date.now();
+        const elapsed = currentTime - ballAnimation.effectStartTime;
+        const progress = Math.min(elapsed / 3000, 1); // 3 second duration
+        const sparkleCount = 12;
+        
+        this.renderer.ctx.save();
+        
+        // Draw sparkles around the screen
+        for (let i = 0; i < sparkleCount; i++) {
+            const angle = (i / sparkleCount) * Math.PI * 2;
+            const radius = 50 + Math.sin(currentTime * 0.01 + i) * 20;
+            const sparkleX = this.renderer.centerX + Math.cos(angle) * radius;
+            const sparkleY = this.renderer.centerY + Math.sin(angle) * radius;
+            
+            const sparkleSize = (2 + Math.sin(currentTime * 0.02 + i) * 1) * (1 - progress * 0.5);
+            
+            this.renderer.ctx.fillStyle = `hsl(${(currentTime * 0.1 + i * 30) % 360}, 70%, 60%)`;
+            this.renderer.ctx.globalAlpha = 1 - progress;
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.arc(sparkleX, sparkleY, sparkleSize, 0, Math.PI * 2);
+            this.renderer.ctx.fill();
+        }
+        
+        // Draw celebration text
+        const textAlpha = Math.max(0, 1 - progress);
+        this.renderer.ctx.globalAlpha = textAlpha;
+        this.renderer.ctx.fillStyle = '#FFD700';
+        this.renderer.ctx.font = 'bold 24px Arial';
+        this.renderer.ctx.textAlign = 'center';
+        this.renderer.ctx.strokeStyle = '#FF8C00';
+        this.renderer.ctx.lineWidth = 2;
+        this.renderer.ctx.strokeText('HOLE IN ONE!', this.renderer.centerX, this.renderer.centerY - 20);        this.renderer.ctx.fillText('HOLE IN ONE!', this.renderer.centerX, this.renderer.centerY - 20);
+          this.renderer.ctx.restore();
     }
 
-    renderWaterSplashEffect() {
-        // Placeholder for splash effect
+    renderWaterSplashEffect(ballAnimation) {
+        if (!ballAnimation || !ballAnimation.effectStartTime) return;
+        
+        const currentTime = Date.now();
+        const animationDuration = 3000; // 3 seconds total
+        const elapsed = currentTime - ballAnimation.effectStartTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        this.renderer.ctx.save();
+        
+        // Create multiple water droplets
+        const dropletCount = 20;
+        for (let i = 0; i < dropletCount; i++) {
+            const angle = (i / dropletCount) * Math.PI * 2;
+            const baseRadius = 30;
+            const animatedRadius = baseRadius * (1 + progress * 2);
+            
+            const dropletX = this.renderer.centerX + Math.cos(angle) * animatedRadius;
+            const dropletY = this.renderer.centerY + Math.sin(angle) * animatedRadius * 0.7; // Flatten for isometric
+            
+            // Make droplets fade out as they expand
+            const alpha = Math.max(0, 1 - progress);
+            const dropletSize = 1 + progress * 3;
+            
+            this.renderer.ctx.globalAlpha = alpha;
+            this.renderer.ctx.fillStyle = '#4682B4'; // Water blue color
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.arc(dropletX, dropletY, dropletSize, 0, Math.PI * 2);
+            this.renderer.ctx.fill();
+        }
+        
+        // Create concentric water ripples
+        for (let ring = 0; ring < 3; ring++) {
+            const ringRadius = (20 + ring * 15) * (1 + progress);
+            const ringAlpha = Math.max(0, 0.3 - progress - ring * 0.1);
+            
+            this.renderer.ctx.globalAlpha = ringAlpha;
+            this.renderer.ctx.strokeStyle = '#4682B4';
+            this.renderer.ctx.lineWidth = 2;
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.ellipse(
+                this.renderer.centerX, 
+                this.renderer.centerY, 
+                ringRadius, 
+                ringRadius * 0.5, // Flatten for isometric view
+                0, 0, Math.PI * 2
+            );
+            this.renderer.ctx.stroke();
+        }
+        
+        // Add splash text
+        if (progress < 0.5) {
+            this.renderer.ctx.globalAlpha = 1 - progress * 2;
+            this.renderer.ctx.fillStyle = '#4682B4';
+            this.renderer.ctx.font = 'bold 18px Arial';
+            this.renderer.ctx.textAlign = 'center';
+            this.renderer.ctx.fillText('SPLASH!', this.renderer.centerX, this.renderer.centerY - 40);
+        }
+        
+        this.renderer.ctx.restore();
     }
 
     renderSeagulls(animationManager) {

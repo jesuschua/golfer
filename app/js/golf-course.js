@@ -336,8 +336,7 @@ class GolfCourse {
         // First check if it's even on the course
         if (x < 0 || x > hole.width || y < 0 || y > hole.height) {
             return { type: 'off-course' };
-        }
-          // Check hole first (highest priority - very small target)
+        }        // Check hole first (highest priority - very small target)
         const distanceToHole = Math.sqrt((x - hole.green.pin.x) ** 2 + (y - hole.green.pin.y) ** 2);
         if (distanceToHole <= 0.5) { // Hole radius is very small (0.5 units)
             return { type: 'hole', distance: distanceToHole };

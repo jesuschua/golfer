@@ -52,11 +52,11 @@ class PhysicsEngine {
             hitGreen: false,
             outOfBounds: false,
             restTime: null,
-            isRolling: false,
-            isDisappearing: false,
+            isRolling: false,            isDisappearing: false,
             isTrapped: false,
             holeInOne: false,
-            waterHazard: false
+            waterHazard: false,
+            effectStartTime: null  // Track when special effects started
         };
     }
 
@@ -94,20 +94,20 @@ class PhysicsEngine {
         }
 
         return { shouldContinue: true };
-    }
-
-    checkCollisions(ball, ballAnimation, hole, currentTime) {
+    }    checkCollisions(ball, ballAnimation, hole, currentTime) {
         // Check for special collision detection while ball is in flight
         if (!ballAnimation.isDisappearing && !ballAnimation.isTrapped) {
             const currentFeature = this.identifyHitFeature(ball.x, ball.y, hole);
               // Check for hole collision
             if (currentFeature.type === 'hole') {
                 ballAnimation.holeInOne = true;
+                ballAnimation.effectStartTime = Date.now();
                 return { shouldStop: true, type: 'hole-in-one' };
             }
               // Check for water collision
             if (currentFeature.type === 'water' && ball.z <= 2) {
                 ballAnimation.waterHazard = true;
+                ballAnimation.effectStartTime = Date.now();
                 return { shouldStop: true, type: 'water-hazard' };
             }
         }
@@ -129,15 +129,15 @@ class PhysicsEngine {
         }
 
         return { shouldStop: false };
-    }
-
-    handleGroundCollision(ball, ballAnimation, hole) {
+    }handleGroundCollision(ball, ballAnimation, hole) {
         const hitFeature = this.identifyHitFeature(ball.x, ball.y, hole);
           if (hitFeature.type === 'hole') {
             ballAnimation.holeInOne = true;
+            ballAnimation.effectStartTime = Date.now();
             return { shouldStop: true, type: 'hole-in-one' };
         } else if (hitFeature.type === 'water') {
             ballAnimation.waterHazard = true;
+            ballAnimation.effectStartTime = Date.now();
             return { shouldStop: true, type: 'water-hazard' };
         } else if (hitFeature.type === 'bunker') {
             ballAnimation.velocity.x = 0;
@@ -205,9 +205,7 @@ class PhysicsEngine {
         // Check if off course
         if (x < 0 || x > hole.width || y < 0 || y > hole.height) {
             return { type: 'off-course' };
-        }
-          
-        // Check hole (highest priority)
+        }        // Check hole (highest priority)
         const distanceToHole = Math.sqrt((x - hole.green.pin.x) ** 2 + (y - hole.green.pin.y) ** 2);
         if (distanceToHole <= 0.5) {
             return { type: 'hole', distance: distanceToHole };

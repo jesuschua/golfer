@@ -124,9 +124,7 @@ class CourseGenerator {
         }
 
         return fairway;
-    }
-
-    generateHazards(hole) {
+    }    generateHazards(hole) {
         // Minimal hazards for serene aesthetic
         const numBunkers = this.randomInt(0, 2);
         const numWater = this.random(0, 1) > 0.8 ? 1 : 0;
