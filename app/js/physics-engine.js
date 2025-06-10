@@ -134,8 +134,7 @@ class PhysicsEngine {
           if (hitFeature.type === 'hole') {
             ballAnimation.holeInOne = true;
             ballAnimation.effectStartTime = Date.now();
-            return { shouldStop: true, type: 'hole-in-one' };
-        } else if (hitFeature.type === 'water') {
+            return { shouldStop: true, type: 'hole-in-one' };        } else if (hitFeature.type === 'water') {
             ballAnimation.waterHazard = true;
             ballAnimation.effectStartTime = Date.now();
             return { shouldStop: true, type: 'water-hazard' };
@@ -146,6 +145,8 @@ class PhysicsEngine {
             ballAnimation.isRolling = true;
             ballAnimation.isTrapped = true;
             ballAnimation.hitGreen = false;
+            ballAnimation.bunkerHit = true;
+            ballAnimation.effectStartTime = Date.now();
         } else {
             // Handle bouncing
             this.handleBounce(ballAnimation, hitFeature);

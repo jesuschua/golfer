@@ -259,10 +259,13 @@ class CourseRenderer {
                 if (ballAnimation.holeInOne && ballAnimation.effectStartTime && 
                     (now - ballAnimation.effectStartTime) < effectDuration) {
                     this.renderHoleInOneCelebration(ballAnimation);
-                    return;
-                } else if (ballAnimation.waterHazard && ballAnimation.effectStartTime && 
+                    return;                } else if (ballAnimation.waterHazard && ballAnimation.effectStartTime && 
                            (now - ballAnimation.effectStartTime) < effectDuration) {
                     this.renderWaterSplashEffect(ballAnimation);
+                    return;
+                } else if (ballAnimation.bunkerHit && ballAnimation.effectStartTime && 
+                           (now - ballAnimation.effectStartTime) < effectDuration) {
+                    this.renderBunkerSplashEffect(ballAnimation);
                     return;
                 }
             }
@@ -428,6 +431,78 @@ class CourseRenderer {
             this.renderer.ctx.font = 'bold 18px Arial';
             this.renderer.ctx.textAlign = 'center';
             this.renderer.ctx.fillText('SPLASH!', this.renderer.centerX, this.renderer.centerY - 40);
+        }
+        
+        this.renderer.ctx.restore();
+    }
+
+    renderBunkerSplashEffect(ballAnimation) {
+        if (!ballAnimation || !ballAnimation.effectStartTime) return;
+        
+        const currentTime = Date.now();
+        const animationDuration = 3000; // 3 seconds total
+        const elapsed = currentTime - ballAnimation.effectStartTime;
+        const progress = Math.min(elapsed / animationDuration, 1);
+        
+        this.renderer.ctx.save();
+        
+        // Create sand particles flying outward
+        const sandParticleCount = 25;
+        for (let i = 0; i < sandParticleCount; i++) {
+            const angle = (i / sandParticleCount) * Math.PI * 2;
+            const baseRadius = 25;
+            const animatedRadius = baseRadius * (1 + progress * 1.5);
+            
+            const particleX = this.renderer.centerX + Math.cos(angle) * animatedRadius;
+            const particleY = this.renderer.centerY + Math.sin(angle) * animatedRadius * 0.6; // Flatten for isometric
+            
+            // Make particles fall as they expand
+            const fallOffset = progress * progress * 20; // Quadratic fall for gravity effect
+            const finalY = particleY + fallOffset;
+            
+            // Vary particle sizes and colors
+            const particleSize = (0.8 + Math.random() * 1.2) * (1 + progress * 0.5);
+            const alpha = Math.max(0, 1 - progress * 1.2);
+            
+            // Sand colors - various shades of tan/beige
+            const sandColors = ['#F4E4BC', '#E6D3A3', '#D2B48C', '#DEB887', '#F5DEB3'];
+            const sandColor = sandColors[i % sandColors.length];
+            
+            this.renderer.ctx.globalAlpha = alpha;
+            this.renderer.ctx.fillStyle = sandColor;
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.arc(particleX, finalY, particleSize, 0, Math.PI * 2);
+            this.renderer.ctx.fill();
+        }
+        
+        // Add sand dust cloud effect
+        if (progress < 0.7) {
+            const dustRadius = 40 * (1 + progress * 2);
+            const dustAlpha = Math.max(0, 0.2 - progress * 0.3);
+            
+            this.renderer.ctx.globalAlpha = dustAlpha;
+            this.renderer.ctx.fillStyle = '#DEB887';
+            this.renderer.ctx.beginPath();
+            this.renderer.ctx.ellipse(
+                this.renderer.centerX, 
+                this.renderer.centerY, 
+                dustRadius, 
+                dustRadius * 0.4, // Flatten for isometric view
+                0, 0, Math.PI * 2
+            );
+            this.renderer.ctx.fill();
+        }
+        
+        // Add bunker text
+        if (progress < 0.6) {
+            this.renderer.ctx.globalAlpha = Math.max(0, 1 - progress * 1.5);
+            this.renderer.ctx.fillStyle = '#8B4513'; // Brown color for sand
+            this.renderer.ctx.font = 'bold 16px Arial';
+            this.renderer.ctx.textAlign = 'center';
+            this.renderer.ctx.strokeStyle = '#A0522D';
+            this.renderer.ctx.lineWidth = 1;
+            this.renderer.ctx.strokeText('BUNKER!', this.renderer.centerX, this.renderer.centerY - 35);
+            this.renderer.ctx.fillText('BUNKER!', this.renderer.centerX, this.renderer.centerY - 35);
         }
         
         this.renderer.ctx.restore();
