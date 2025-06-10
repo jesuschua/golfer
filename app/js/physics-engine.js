@@ -58,18 +58,28 @@ class PhysicsEngine {
             waterHazard: false,
             effectStartTime: null  // Track when special effects started
         };
-    }
-
-    updateBallPhysics(ballAnimation, ball, hole) {
-        if (!ballAnimation.active) return { shouldContinue: true };
-
-        const now = Date.now();
+    }    updateBallPhysics(ballAnimation, ball, hole) {
+        if (!ballAnimation.active) return { shouldContinue: true };        const now = Date.now();
         const deltaTime = Math.min(30, now - (this._lastUpdateTime || now)) / 1000;
         this._lastUpdateTime = now;
-
+        
         // Apply gravity if not in rolling mode
         if (!ballAnimation.isRolling) {
-            ballAnimation.velocity.z -= this.gravity * deltaTime;
+            ballAnimation.velocity.z -= this.gravity * deltaTime;        } else {
+            // Apply rolling friction when ball is rolling on the ground (grass)
+            const rollingFrictionPerSecond = 0.65; // Keep 65% of velocity per second (35% loss per second) - much higher friction for grass
+            const frictionFactor = Math.pow(rollingFrictionPerSecond, deltaTime);
+            
+            ballAnimation.velocity.x *= frictionFactor;
+            ballAnimation.velocity.y *= frictionFactor;
+            
+            // Stop the ball if velocity is very low
+            const velocityAfter = Math.sqrt(ballAnimation.velocity.x * ballAnimation.velocity.x + ballAnimation.velocity.y * ballAnimation.velocity.y);
+            if (velocityAfter < 0.5) {
+                ballAnimation.velocity.x = 0;
+                ballAnimation.velocity.y = 0;
+                ballAnimation.active = false;
+            }
         }
 
         // Update position
@@ -138,11 +148,9 @@ class PhysicsEngine {
             ballAnimation.waterHazard = true;
             ballAnimation.effectStartTime = Date.now();
             return { shouldStop: true, type: 'water-hazard' };
-        } else if (hitFeature.type === 'bunker') {
-            ballAnimation.velocity.x = 0;
+        } else if (hitFeature.type === 'bunker') {            ballAnimation.velocity.x = 0;
             ballAnimation.velocity.y = 0;
-            ballAnimation.velocity.z = 0;
-            ballAnimation.isRolling = true;
+            ballAnimation.velocity.z = 0;            ballAnimation.isRolling = true;
             ballAnimation.isTrapped = true;
             ballAnimation.hitGreen = false;
             ballAnimation.bunkerHit = true;
@@ -166,16 +174,14 @@ class PhysicsEngine {
                 ballAnimation.velocity.x ** 2 + 
                 ballAnimation.velocity.y ** 2 + 
                 ballAnimation.velocity.z ** 2
-            );
-              if (totalVelocity < 5) {
+            );              if (totalVelocity < 5) {
                 ballAnimation.velocity.z = 0;
                 ballAnimation.isRolling = true;
             }
             
             if (hitFeature.type === 'green') {
                 ballAnimation.hitGreen = true;
-            }
-        } else {
+            }        } else {
             ballAnimation.velocity.z = 0;
             ballAnimation.isRolling = true;
         }
